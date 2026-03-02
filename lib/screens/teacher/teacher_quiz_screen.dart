@@ -1,10 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
+import '../auth/api_service.dart';
+
+class _BackgroundPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    paint.color = const Color(0xFF6C63FF).withAlpha(13);
+    canvas.drawCircle(
+        Offset(size.width * 0.8, size.height * 0.15), 180, paint);
+    paint.color = const Color(0xFF00D4AA).withAlpha(10);
+    canvas.drawCircle(
+        Offset(size.width * 0.2, size.height * 0.7), 200, paint);
+    paint.color = const Color(0xFFFF6584).withAlpha(8);
+    canvas.drawCircle(
+        Offset(size.width * 0.9, size.height * 0.85), 150, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
 
 class TeacherQuizScreen extends StatefulWidget {
   const TeacherQuizScreen({super.key});
-
   @override
   State<TeacherQuizScreen> createState() => _TeacherQuizScreenState();
 }
@@ -16,53 +35,8 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
   late AnimationController _listController;
   late Animation<double> _headerAnim;
   late Animation<double> _fabAnim;
-
-  final List<Map<String, dynamic>> _quizzes = [
-    {
-      'title': 'Mathematics - Chapter 5',
-      'subject': 'Algebra',
-      'questions': 15,
-      'totalMarks': 30,
-      'status': 'Active',
-      'submissions': 18,
-      'total': 32,
-      'color': const Color(0xFF6C63FF),
-      'icon': '📐',
-    },
-    {
-      'title': 'Science Quiz - Newton\'s Laws',
-      'subject': 'Physics',
-      'questions': 10,
-      'totalMarks': 20,
-      'status': 'Pending',
-      'submissions': 0,
-      'total': 32,
-      'color': const Color(0xFF00D4AA),
-      'icon': '🔬',
-    },
-    {
-      'title': 'English Grammar Test',
-      'subject': 'English',
-      'questions': 20,
-      'totalMarks': 40,
-      'status': 'Completed',
-      'submissions': 30,
-      'total': 32,
-      'color': const Color(0xFFFF6584),
-      'icon': '📝',
-    },
-    {
-      'title': 'History - World War II',
-      'subject': 'History',
-      'questions': 12,
-      'totalMarks': 24,
-      'status': 'Active',
-      'submissions': 5,
-      'total': 32,
-      'color': const Color(0xFFFFB347),
-      'icon': '🌍',
-    },
-  ];
+  List<Map<String, dynamic>> _quizzes = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -73,17 +47,54 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
         vsync: this, duration: const Duration(milliseconds: 600));
     _listController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1200));
-
     _headerAnim = CurvedAnimation(
         parent: _headerController, curve: Curves.easeOutCubic);
     _fabAnim =
         CurvedAnimation(parent: _fabController, curve: Curves.elasticOut);
-
     _headerController.forward();
-    Future.delayed(const Duration(milliseconds: 300),
-            () => _listController.forward());
     Future.delayed(
         const Duration(milliseconds: 600), () => _fabController.forward());
+    _fetchQuizzes();
+  }
+
+  Future<void> _fetchQuizzes() async {
+    setState(() => _isLoading = true);
+    try {
+      final res = await QuizApi.getTeacherQuizzes();
+      if (res['success'] == true && mounted) {
+        final List raw = res['quizzes'] ?? [];
+        const colors = [
+          Color(0xFF6C63FF),
+          Color(0xFF00D4AA),
+          Color(0xFFFF6584),
+          Color(0xFFFFB347),
+        ];
+        const icons = ['📐', '🔬', '📝', '🌍'];
+        setState(() {
+          _quizzes = List.generate(raw.length, (i) {
+            final q = raw[i];
+            return {
+              'id': q['id'],
+              'title': q['title'] ?? 'Untitled',
+              'subject': '',
+              'questions': q['question_count'] ?? 0,
+              'totalMarks': q['total_marks'] ?? 0,
+              'status': 'Active',
+              'submissions': q['submission_count'] ?? 0,
+              'total': 32,
+              'color': colors[i % colors.length],
+              'icon': icons[i % icons.length],
+            };
+          });
+          _isLoading = false;
+        });
+        _listController.forward();
+      } else {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -100,18 +111,28 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
       backgroundColor: const Color(0xFF0A0E1A),
       body: Stack(
         children: [
-          // Background mesh gradient
-          Positioned.fill(child: _buildBackground()),
+          Positioned.fill(child: CustomPaint(painter: _BackgroundPainter())),
           SafeArea(
             child: Column(
               children: [
                 _buildHeader(),
                 _buildStatsRow(),
-                Expanded(child: _buildQuizList()),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(
+                      child: CircularProgressIndicator(
+                          color: Color(0xFF6C63FF)))
+                      : _quizzes.isEmpty
+                      ? Center(
+                      child: Text('No quizzes yet',
+                          style: TextStyle(
+                              color: Colors.white.withAlpha(128),
+                              fontSize: 15)))
+                      : _buildQuizList(),
+                ),
               ],
             ),
           ),
-          // FAB
           Positioned(
             bottom: 30,
             right: 24,
@@ -123,10 +144,6 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
         ],
       ),
     );
-  }
-
-  Widget _buildBackground() {
-    return CustomPaint(painter: _BackgroundPainter());
   }
 
   Widget _buildHeader() {
@@ -146,10 +163,10 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.07),
+                    color: Colors.white.withAlpha(18),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: Colors.white.withOpacity(0.1), width: 1),
+                    border:
+                    Border.all(color: Colors.white.withAlpha(26), width: 1),
                   ),
                   child: const Icon(Icons.arrow_back_ios_new,
                       color: Colors.white, size: 16),
@@ -176,7 +193,7 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
                   Text(
                     'Manage & Create Quizzes',
                     style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withAlpha(128),
                         fontSize: 13,
                         fontWeight: FontWeight.w400),
                   ),
@@ -191,8 +208,8 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
                       colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)]),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child:
-                const Icon(Icons.filter_list, color: Colors.white, size: 20),
+                child: const Icon(Icons.filter_list,
+                    color: Colors.white, size: 20),
               ),
             ],
           ),
@@ -202,21 +219,28 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
   }
 
   Widget _buildStatsRow() {
+    int totalSubs = 0;
+    for (final q in _quizzes) {
+      totalSubs += (q['submissions'] as int? ?? 0);
+    }
+    final active = _quizzes
+        .where((q) =>
+    (q['submissions'] as int? ?? 0) < (q['total'] as int? ?? 1))
+        .length;
     return AnimatedBuilder(
       animation: _headerAnim,
-      builder: (context, child) => Opacity(
-        opacity: _headerAnim.value,
-        child: child,
-      ),
+      builder: (context, child) =>
+          Opacity(opacity: _headerAnim.value, child: child),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
         child: Row(
           children: [
-            _statChip('4', 'Total Quizzes', const Color(0xFF6C63FF)),
+            _statChip('${_quizzes.length}', 'Total Quizzes',
+                const Color(0xFF6C63FF)),
             const SizedBox(width: 10),
-            _statChip('2', 'Active', const Color(0xFF00D4AA)),
+            _statChip('$active', 'Active', const Color(0xFF00D4AA)),
             const SizedBox(width: 10),
-            _statChip('53', 'Submissions', const Color(0xFFFFB347)),
+            _statChip('$totalSubs', 'Submissions', const Color(0xFFFFB347)),
           ],
         ),
       ),
@@ -228,9 +252,9 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
+          color: color.withAlpha(31),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.25), width: 1),
+          border: Border.all(color: color.withAlpha(64), width: 1),
         ),
         child: Column(
           children: [
@@ -243,7 +267,7 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
             const SizedBox(height: 2),
             Text(label,
                 style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
+                    color: Colors.white.withAlpha(128),
                     fontSize: 11,
                     fontWeight: FontWeight.w500)),
           ],
@@ -253,31 +277,36 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
   }
 
   Widget _buildQuizList() {
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-      itemCount: _quizzes.length,
-      itemBuilder: (context, index) {
-        return AnimatedBuilder(
-          animation: _listController,
-          builder: (context, child) {
-            final delay = index * 0.15;
-            final animValue = math.max(
-                0.0,
-                math.min(
-                    1.0, (_listController.value - delay) / (1.0 - delay)));
-            final curve =
-            Curves.easeOutCubic.transform(animValue.clamp(0.0, 1.0));
-            return Opacity(
-              opacity: curve,
-              child: Transform.translate(
-                offset: Offset(0, 40 * (1 - curve)),
-                child: child,
-              ),
-            );
-          },
-          child: _buildQuizCard(_quizzes[index], index),
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: _fetchQuizzes,
+      color: const Color(0xFF6C63FF),
+      backgroundColor: const Color(0xFF131929),
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+        itemCount: _quizzes.length,
+        itemBuilder: (context, index) {
+          return AnimatedBuilder(
+            animation: _listController,
+            builder: (context, child) {
+              final delay = index * 0.15;
+              final animValue = math.max(
+                  0.0,
+                  math.min(1.0,
+                      (_listController.value - delay) / (1.0 - delay)));
+              final curve =
+              Curves.easeOutCubic.transform(animValue.clamp(0.0, 1.0));
+              return Opacity(
+                opacity: curve,
+                child: Transform.translate(
+                  offset: Offset(0, 40 * (1 - curve)),
+                  child: child,
+                ),
+              );
+            },
+            child: _buildQuizCard(_quizzes[index], index),
+          );
+        },
+      ),
     );
   }
 
@@ -286,7 +315,7 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
     final status = quiz['status'] as String;
     final submissions = quiz['submissions'] as int;
     final total = quiz['total'] as int;
-    final progress = submissions / total;
+    final progress = total > 0 ? submissions / total : 0.0;
 
     Color statusColor;
     IconData statusIcon;
@@ -311,25 +340,23 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
         decoration: BoxDecoration(
           color: const Color(0xFF131929),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withOpacity(0.2), width: 1),
+          border: Border.all(color: color.withAlpha(51), width: 1),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
+                color: color.withAlpha(20),
+                blurRadius: 20,
+                offset: const Offset(0, 8)),
           ],
         ),
         child: Column(
           children: [
-            // Card top bar
             Container(
               height: 4,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                    colors: [color, color.withOpacity(0.3)]),
-                borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20)),
+                gradient:
+                LinearGradient(colors: [color, color.withAlpha(77)]),
+                borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(20)),
               ),
             ),
             Padding(
@@ -343,35 +370,30 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
                         width: 46,
                         height: 46,
                         decoration: BoxDecoration(
-                          color: color.withOpacity(0.15),
+                          color: color.withAlpha(38),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Center(
-                          child: Text(quiz['icon'],
-                              style: const TextStyle(fontSize: 22)),
-                        ),
+                            child: Text(quiz['icon'],
+                                style: const TextStyle(fontSize: 22))),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              quiz['title'],
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.3),
-                            ),
+                            Text(quiz['title'],
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.3)),
                             const SizedBox(height: 3),
-                            Text(
-                              quiz['subject'],
-                              style: TextStyle(
-                                  color: color,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600),
-                            ),
+                            Text(quiz['subject'] ?? '',
+                                style: TextStyle(
+                                    color: color,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600)),
                           ],
                         ),
                       ),
@@ -379,10 +401,10 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.12),
+                          color: statusColor.withAlpha(31),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: statusColor.withOpacity(0.3), width: 1),
+                              color: statusColor.withAlpha(77), width: 1),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -402,69 +424,101 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      _infoChip(
-                          '${quiz['questions']} Qs',
-                          Icons.help_outline,
-                          Colors.white.withOpacity(0.6)),
+                      _infoChip('${quiz['questions']} Qs',
+                          Icons.help_outline, Colors.white.withAlpha(153)),
                       const SizedBox(width: 12),
-                      _infoChip(
-                          '${quiz['totalMarks']} Marks',
-                          Icons.star_outline,
-                          Colors.white.withOpacity(0.6)),
+                      _infoChip('${quiz['totalMarks']} Marks',
+                          Icons.star_outline, Colors.white.withAlpha(153)),
                       const Spacer(),
-                      Text(
-                        '$submissions/$total',
-                        style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600),
-                      ),
+                      Text('$submissions/$total',
+                          style: TextStyle(
+                              color: Colors.white.withAlpha(179),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600)),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  // Progress bar
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: progress,
-                      backgroundColor: Colors.white.withOpacity(0.06),
+                      backgroundColor: Colors.white.withAlpha(15),
                       valueColor: AlwaysStoppedAnimation<Color>(color),
                       minHeight: 5,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '${(progress * 100).toInt()}% submitted',
-                    style: TextStyle(
-                        color: Colors.white.withOpacity(0.35),
-                        fontSize: 11),
-                  ),
+                  Text('${(progress * 100).toInt()}% submitted',
+                      style: TextStyle(
+                          color: Colors.white.withAlpha(89), fontSize: 11)),
                 ],
               ),
             ),
-            // Action buttons
             Container(
               padding:
               const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.03),
-                borderRadius:
-                const BorderRadius.vertical(bottom: Radius.circular(20)),
+                color: Colors.white.withAlpha(8),
+                borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(20)),
                 border: Border(
-                    top: BorderSide(
-                        color: Colors.white.withOpacity(0.06))),
+                    top: BorderSide(color: Colors.white.withAlpha(15))),
               ),
               child: Row(
                 children: [
-                  _actionBtn('View Results', Icons.bar_chart, color),
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                              pageBuilder: (_, a, __) => FadeTransition(
+                                  opacity: a,
+                                  child:
+                                  QuizResultsViewScreen(quiz: quiz)),
+                              transitionDuration:
+                              const Duration(milliseconds: 400)));
+                    },
+                    child: Row(children: [
+                      Icon(Icons.bar_chart, color: color, size: 16),
+                      const SizedBox(width: 5),
+                      Text('View Results',
+                          style: TextStyle(
+                              color: color,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
                   const SizedBox(width: 10),
-                  _actionBtn('Edit', Icons.edit_outlined,
-                      Colors.white.withOpacity(0.5)),
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                              pageBuilder: (_, a, __) => FadeTransition(
+                                  opacity: a,
+                                  child: QuizEditorScreen(quiz: quiz)),
+                              transitionDuration:
+                              const Duration(milliseconds: 400)))
+                          .then((_) => _fetchQuizzes());
+                    },
+                    child: Row(children: [
+                      Icon(Icons.edit_outlined,
+                          color: Colors.white.withAlpha(128), size: 16),
+                      const SizedBox(width: 5),
+                      Text('Edit',
+                          style: TextStyle(
+                              color: Colors.white.withAlpha(128),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
                   const Spacer(),
                   GestureDetector(
                     onTap: () => _confirmDelete(index),
                     child: Icon(Icons.delete_outline,
-                        color: Colors.white.withOpacity(0.3), size: 20),
+                        color: Colors.white.withAlpha(77), size: 20),
                   ),
                 ],
               ),
@@ -476,51 +530,39 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
   }
 
   Widget _infoChip(String label, IconData icon, Color color) {
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 14),
-        const SizedBox(width: 4),
-        Text(label,
-            style: TextStyle(
-                color: color, fontSize: 12, fontWeight: FontWeight.w500)),
-      ],
-    );
-  }
-
-  Widget _actionBtn(String label, IconData icon, Color color) {
-    return GestureDetector(
-      onTap: () {},
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: 5),
-          Text(label,
-              style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
+    return Row(children: [
+      Icon(icon, color: color, size: 14),
+      const SizedBox(width: 4),
+      Text(label,
+          style: TextStyle(
+              color: color, fontSize: 12, fontWeight: FontWeight.w500)),
+    ]);
   }
 
   Widget _buildCreateFAB() {
     return GestureDetector(
-      onTap: () => _showCreateQuizSheet(),
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        Navigator.push(
+            context,
+            PageRouteBuilder(
+                pageBuilder: (_, a, __) => FadeTransition(
+                    opacity: a, child: const QuizCreatorScreen()),
+                transitionDuration: const Duration(milliseconds: 400)))
+            .then((_) => _fetchQuizzes());
+      },
       child: Container(
         height: 58,
         padding: const EdgeInsets.symmetric(horizontal: 24),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)],
-          ),
+              colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)]),
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF6C63FF).withOpacity(0.45),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
+                color: const Color(0xFF6C63FF).withAlpha(115),
+                blurRadius: 20,
+                offset: const Offset(0, 8)),
           ],
         ),
         child: const Row(
@@ -545,45 +587,44 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => _QuizOptionsSheet(quiz: quiz),
-    );
-  }
-
-  void _showCreateQuizSheet() {
-    HapticFeedback.mediumImpact();
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, animation, __) => FadeTransition(
-          opacity: animation,
-          child: const QuizCreatorScreen(),
-        ),
-        transitionDuration: const Duration(milliseconds: 400),
-      ),
+      builder: (context) =>
+          _QuizOptionsSheet(quiz: quiz, onRefresh: _fetchQuizzes),
     );
   }
 
   void _confirmDelete(int index) {
     HapticFeedback.heavyImpact();
+    final quiz = _quizzes[index];
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF131929),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Delete Quiz',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            style:
+            TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         content: Text('Are you sure you want to delete this quiz?',
-            style: TextStyle(color: Colors.white.withOpacity(0.6))),
+            style: TextStyle(color: Colors.white.withAlpha(153))),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel',
-                style: TextStyle(color: Color(0xFF6C63FF))),
-          ),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel',
+                  style: TextStyle(color: Color(0xFF6C63FF)))),
           TextButton(
-            onPressed: () {
-              setState(() => _quizzes.removeAt(index));
-              Navigator.pop(context);
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final res = await QuizApi.deleteQuiz(quiz['id'] as int);
+              if (res['success'] == true) {
+                _fetchQuizzes();
+              } else if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(res['message'] ?? 'Delete failed'),
+                    backgroundColor: const Color(0xFFFF6584),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))));
+              }
             },
             child: const Text('Delete',
                 style: TextStyle(color: Color(0xFFFF6584))),
@@ -594,89 +635,120 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
   }
 }
 
-// ─── Background Painter ──────────────────────────────────────────────────────
-
-class _BackgroundPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..style = PaintingStyle.fill;
-
-    paint.color = const Color(0xFF6C63FF).withOpacity(0.06);
-    canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.12), 180, paint);
-
-    paint.color = const Color(0xFF00D4FF).withOpacity(0.05);
-    canvas.drawCircle(Offset(size.width * 0.1, size.height * 0.6), 140, paint);
-
-    paint.color = const Color(0xFFFF6584).withOpacity(0.04);
-    canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.8), 120, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ─── Quiz Options Bottom Sheet ────────────────────────────────────────────────
-
 class _QuizOptionsSheet extends StatelessWidget {
   final Map<String, dynamic> quiz;
-  const _QuizOptionsSheet({required this.quiz});
+  final VoidCallback onRefresh;
+  const _QuizOptionsSheet({required this.quiz, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
     final color = quiz['color'] as Color;
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF131929),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+          color: Color(0xFF131929),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(51),
+                  borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 20),
-          Row(
-            children: [
-              Container(
+          Row(children: [
+            Container(
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Center(child: Text(quiz['icon'], style: const TextStyle(fontSize: 24))),
-              ),
-              const SizedBox(width: 14),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(quiz['title'],
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700)),
-                  Text(quiz['subject'],
-                      style: TextStyle(color: color, fontSize: 13)),
-                ],
-              ),
-            ],
-          ),
+                    color: color.withAlpha(38),
+                    borderRadius: BorderRadius.circular(14)),
+                child: Center(
+                    child: Text(quiz['icon'],
+                        style: const TextStyle(fontSize: 24)))),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(quiz['title'],
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700)),
+                    Text(quiz['subject'] ?? '',
+                        style: TextStyle(color: color, fontSize: 13)),
+                  ]),
+            ),
+          ]),
           const SizedBox(height: 24),
           _sheetOption(Icons.bar_chart_rounded, 'View Results',
-              'See student performance', color, () => Navigator.pop(context)),
-          _sheetOption(Icons.share_outlined, 'Share Quiz',
-              'Share with students', const Color(0xFF00D4AA), () => Navigator.pop(context)),
+              'See student performance', color, () {
+                Navigator.pop(context);
+                Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                        pageBuilder: (_, a, __) => FadeTransition(
+                            opacity: a,
+                            child: QuizResultsViewScreen(quiz: quiz)),
+                        transitionDuration:
+                        const Duration(milliseconds: 400)));
+              }),
           _sheetOption(Icons.edit_outlined, 'Edit Quiz',
-              'Modify questions or settings', const Color(0xFFFFB347), () => Navigator.pop(context)),
-          _sheetOption(Icons.copy_outlined, 'Duplicate Quiz',
-              'Create a copy', Colors.white54, () => Navigator.pop(context)),
+              'Modify questions or settings', const Color(0xFFFFB347), () {
+                Navigator.pop(context);
+                Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                        pageBuilder: (_, a, __) => FadeTransition(
+                            opacity: a,
+                            child: QuizEditorScreen(quiz: quiz)),
+                        transitionDuration:
+                        const Duration(milliseconds: 400)))
+                    .then((_) => onRefresh());
+              }),
+          _sheetOption(Icons.share_outlined, 'Share Quiz',
+              'Generate link for WhatsApp', const Color(0xFF00D4AA), () {
+                Navigator.pop(context);
+                final link = 'https://edulearn.app/quiz/${quiz['id']}';
+                final msg =
+                    '📝 *${quiz['title']}*\n\nAttempt this quiz on EduLearn:\n$link';
+                Clipboard.setData(ClipboardData(text: msg));
+                HapticFeedback.mediumImpact();
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content:
+                    const Text('Quiz link copied! Paste in WhatsApp 📲'),
+                    backgroundColor: const Color(0xFF00D4AA),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))));
+              }),
+          _sheetOption(Icons.copy_outlined, 'Duplicate Quiz', 'Create a copy',
+              Colors.white54, () async {
+                Navigator.pop(context);
+                HapticFeedback.mediumImpact();
+                final res = await QuizApi.duplicateQuiz(quiz['id'] as int);
+                if (res['success'] == true) {
+                  onRefresh();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: const Text('Quiz duplicated! ✅'),
+                        backgroundColor: const Color(0xFF00D4AA),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12))));
+                  }
+                } else if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(res['message'] ?? 'Duplicate failed'),
+                      backgroundColor: const Color(0xFFFF6584),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12))));
+                }
+              }),
         ],
       ),
     );
@@ -690,47 +762,405 @@ class _QuizOptionsSheet extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.07),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.15)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(width: 14),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600)),
-                Text(subtitle,
-                    style: TextStyle(
-                        color: Colors.white.withOpacity(0.4), fontSize: 12)),
-              ],
-            ),
-            const Spacer(),
-            Icon(Icons.chevron_right,
-                color: Colors.white.withOpacity(0.3), size: 20),
-          ],
-        ),
+            color: color.withAlpha(18),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withAlpha(38))),
+        child: Row(children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(width: 14),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600)),
+            Text(subtitle,
+                style: TextStyle(
+                    color: Colors.white.withAlpha(102), fontSize: 12)),
+          ]),
+          const Spacer(),
+          Icon(Icons.chevron_right,
+              color: Colors.white.withAlpha(77), size: 20),
+        ]),
       ),
     );
   }
 }
 
-// ─── Quiz Creator Screen ──────────────────────────────────────────────────────
-
-class QuizCreatorScreen extends StatefulWidget {
-  const QuizCreatorScreen({super.key});
-
+class QuizResultsViewScreen extends StatefulWidget {
+  final Map<String, dynamic> quiz;
+  const QuizResultsViewScreen({super.key, required this.quiz});
   @override
-  State<QuizCreatorScreen> createState() => _QuizCreatorScreenState();
+  State<QuizResultsViewScreen> createState() => _QuizResultsViewScreenState();
 }
 
-class _QuizCreatorScreenState extends State<QuizCreatorScreen>
+class _QuizResultsViewScreenState extends State<QuizResultsViewScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _entryController;
+  late AnimationController _listController;
+  late Animation<double> _entryAnim;
+  List<Map<String, dynamic>> _results = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _entryController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 800));
+    _listController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200));
+    _entryAnim = CurvedAnimation(
+        parent: _entryController, curve: Curves.easeOutCubic);
+    _entryController.forward();
+    _fetchResults();
+  }
+
+  Future<void> _fetchResults() async {
+    setState(() => _isLoading = true);
+    try {
+      final res = await QuizApi.getQuizResults(widget.quiz['id'] as int);
+      if (res['success'] == true && mounted) {
+        setState(() {
+          _results =
+          List<Map<String, dynamic>>.from(res['results'] ?? []);
+          _isLoading = false;
+        });
+        _listController.forward();
+      } else {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _entryController.dispose();
+    _listController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalMarks = widget.quiz['totalMarks'] as int? ?? 0;
+    double avgScore = 0;
+    int topScore = 0;
+    if (_results.isNotEmpty) {
+      int sum = 0;
+      for (final r in _results) {
+        final s = r['score'] as int? ?? 0;
+        sum += s;
+        if (s > topScore) topScore = s;
+      }
+      avgScore = sum / _results.length;
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0E1A),
+      body: Stack(children: [
+        Positioned.fill(child: CustomPaint(painter: _BackgroundPainter())),
+        SafeArea(
+          child: FadeTransition(
+            opacity: _entryAnim,
+            child: Column(children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: Row(children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                            color: Colors.white.withAlpha(18),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: Colors.white.withAlpha(26))),
+                        child: const Icon(Icons.arrow_back_ios_new,
+                            color: Colors.white, size: 16)),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ShaderMask(
+                              shaderCallback: (bounds) =>
+                                  const LinearGradient(colors: [
+                                    Color(0xFF6C63FF),
+                                    Color(0xFF00D4FF)
+                                  ]).createShader(bounds),
+                              child: const Text('Quiz Results',
+                                  style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      letterSpacing: -0.5))),
+                          Text(widget.quiz['title'] ?? '',
+                              style: TextStyle(
+                                  color: Colors.white.withAlpha(128),
+                                  fontSize: 13),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ]),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(children: [
+                  _statBox('${_results.length}', 'Students',
+                      const Color(0xFF6C63FF)),
+                  const SizedBox(width: 10),
+                  _statBox('${avgScore.toStringAsFixed(1)}', 'Avg Score',
+                      const Color(0xFF00D4AA)),
+                  const SizedBox(width: 10),
+                  _statBox('$topScore/$totalMarks', 'Top Score',
+                      const Color(0xFFFFB347)),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                    child: CircularProgressIndicator(
+                        color: Color(0xFF6C63FF)))
+                    : _results.isEmpty
+                    ? Center(
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('📭',
+                              style: TextStyle(fontSize: 48)),
+                          const SizedBox(height: 12),
+                          Text('No submissions yet',
+                              style: TextStyle(
+                                  color: Colors.white.withAlpha(128),
+                                  fontSize: 15)),
+                        ]))
+                    : RefreshIndicator(
+                  onRefresh: _fetchResults,
+                  color: const Color(0xFF6C63FF),
+                  backgroundColor: const Color(0xFF131929),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(
+                        20, 4, 20, 30),
+                    itemCount: _results.length,
+                    itemBuilder: (context, index) {
+                      return AnimatedBuilder(
+                        animation: _listController,
+                        builder: (context, child) {
+                          final d = index * 0.12;
+                          final av =
+                          ((_listController.value - d) /
+                              (1.0 - d))
+                              .clamp(0.0, 1.0);
+                          final c =
+                          Curves.easeOutCubic.transform(av);
+                          return Opacity(
+                              opacity: c,
+                              child: Transform.translate(
+                                  offset:
+                                  Offset(0, 30 * (1 - c)),
+                                  child: child));
+                        },
+                        child: _buildResultCard(
+                            _results[index],
+                            index,
+                            totalMarks),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _statBox(String value, String label, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+            color: color.withAlpha(31),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withAlpha(64))),
+        child: Column(children: [
+          Text(value,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5)),
+          const SizedBox(height: 2),
+          Text(label,
+              style: TextStyle(
+                  color: Colors.white.withAlpha(128),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildResultCard(
+      Map<String, dynamic> result, int index, int totalMarks) {
+    final name = result['name'] ?? 'Student';
+    final username = result['username'] ?? '';
+    final score = result['score'] as int? ?? 0;
+    final pct = totalMarks > 0 ? score / totalMarks : 0.0;
+    final cheated = result['cheated'] == 1 || result['cheated'] == true;
+
+    Color scoreColor;
+    String grade;
+    if (pct >= 0.9) {
+      scoreColor = const Color(0xFF00D4AA);
+      grade = 'A+';
+    } else if (pct >= 0.75) {
+      scoreColor = const Color(0xFF6C63FF);
+      grade = 'A';
+    } else if (pct >= 0.6) {
+      scoreColor = const Color(0xFFFFB347);
+      grade = 'B';
+    } else {
+      scoreColor = const Color(0xFFFF6584);
+      grade = 'C';
+    }
+
+    final initials = name
+        .split(' ')
+        .map((w) => w.isNotEmpty ? w[0] : '')
+        .take(2)
+        .join()
+        .toUpperCase();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF131929),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+            color: cheated
+                ? const Color(0xFFFF6584).withAlpha(102)
+                : scoreColor.withAlpha(38)),
+        boxShadow: [
+          BoxShadow(
+              color: scoreColor.withAlpha(13),
+              blurRadius: 12,
+              offset: const Offset(0, 4))
+        ],
+      ),
+      child: Column(children: [
+        Row(children: [
+          Container(
+              width: 20,
+              alignment: Alignment.center,
+              child: Text('${index + 1}',
+                  style: TextStyle(
+                      color: Colors.white.withAlpha(89),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700))),
+          const SizedBox(width: 12),
+          Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                      colors: [scoreColor, scoreColor.withAlpha(153)]),
+                  borderRadius: BorderRadius.circular(12)),
+              child: Center(
+                  child: Text(initials,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14)))),
+          const SizedBox(width: 14),
+          Expanded(
+            child:
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(name,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text(username,
+                  style: TextStyle(
+                      color: Colors.white.withAlpha(102), fontSize: 12)),
+            ]),
+          ),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Row(children: [
+              Text('$score',
+                  style: TextStyle(
+                      color: scoreColor,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900)),
+              Text('/$totalMarks',
+                  style: TextStyle(
+                      color: Colors.white.withAlpha(89),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
+            ]),
+            const SizedBox(height: 2),
+            Container(
+              padding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                  color: scoreColor.withAlpha(38),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(grade,
+                  style: TextStyle(
+                      color: scoreColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800)),
+            ),
+          ]),
+        ]),
+        if (cheated) ...[
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+                color: const Color(0xFFFF6584).withAlpha(26),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: const Color(0xFFFF6584).withAlpha(77))),
+            child: const Row(children: [
+              Icon(Icons.warning_amber_rounded,
+                  color: Color(0xFFFF6584), size: 16),
+              SizedBox(width: 8),
+              Expanded(
+                  child: Text(
+                      'Cheating Detected — Left the app during quiz',
+                      style: TextStyle(
+                          color: Color(0xFFFF6584),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700))),
+            ]),
+          ),
+        ],
+      ]),
+    );
+  }
+}
+
+class QuizEditorScreen extends StatefulWidget {
+  final Map<String, dynamic> quiz;
+  const QuizEditorScreen({super.key, required this.quiz});
+  @override
+  State<QuizEditorScreen> createState() => _QuizEditorScreenState();
+}
+
+class _QuizEditorScreenState extends State<QuizEditorScreen>
     with TickerProviderStateMixin {
   final _titleController = TextEditingController();
   final _marksController = TextEditingController();
@@ -740,9 +1170,10 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
   final _optionCController = TextEditingController();
   final _optionDController = TextEditingController();
   final _pointsController = TextEditingController();
-
   String _correctAnswer = 'A';
-  final List<Map<String, dynamic>> _questions = [];
+  List<Map<String, dynamic>> _questions = [];
+  bool _isLoading = true;
+  bool _isSaving = false;
   late AnimationController _entryController;
   late Animation<double> _entryAnim;
 
@@ -751,9 +1182,130 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
     super.initState();
     _entryController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 700));
-    _entryAnim =
-        CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic);
+    _entryAnim = CurvedAnimation(
+        parent: _entryController, curve: Curves.easeOutCubic);
     _entryController.forward();
+    _loadQuiz();
+  }
+
+  Future<void> _loadQuiz() async {
+    try {
+      final res = await QuizApi.getQuizFull(widget.quiz['id'] as int);
+      if (res['success'] == true && mounted) {
+        final quiz = res['quiz'];
+        final List rawQ = res['questions'] ?? [];
+        setState(() {
+          _titleController.text = quiz['title'] ?? '';
+          _marksController.text = '${quiz['total_marks'] ?? 0}';
+          _questions = rawQ
+              .map<Map<String, dynamic>>((q) => {
+            'question': q['questionText'] ?? '',
+            'optionA': q['optA'] ?? '',
+            'optionB': q['optB'] ?? '',
+            'optionC': q['optC'] ?? '',
+            'optionD': q['optD'] ?? '',
+            'correct': q['correctOpt'] ?? 'A',
+            'points': '${q['marks'] ?? 1}',
+          })
+              .toList();
+          _isLoading = false;
+        });
+      } else {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _addQuestion() {
+    if (_questionController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: const Color(0xFFFF6584),
+          content: const Text('Write a question first!'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12))));
+      return;
+    }
+    HapticFeedback.lightImpact();
+    setState(() {
+      _questions.add({
+        'question': _questionController.text.trim(),
+        'optionA': _optionAController.text.trim(),
+        'optionB': _optionBController.text.trim(),
+        'optionC': _optionCController.text.trim(),
+        'optionD': _optionDController.text.trim(),
+        'correct': _correctAnswer,
+        'points': _pointsController.text.trim().isEmpty
+            ? '1'
+            : _pointsController.text.trim(),
+      });
+      _questionController.clear();
+      _optionAController.clear();
+      _optionBController.clear();
+      _optionCController.clear();
+      _optionDController.clear();
+      _pointsController.clear();
+      _correctAnswer = 'A';
+    });
+  }
+
+  Future<void> _saveQuiz() async {
+    if (_titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: const Color(0xFFFFB347),
+          content: const Text('Title required!'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12))));
+      return;
+    }
+    if (_questions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: const Color(0xFFFF6584),
+          content: const Text('Add at least one question!'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12))));
+      return;
+    }
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+    HapticFeedback.heavyImpact();
+    final aq = _questions
+        .map((q) => {
+      'questionText': q['question'],
+      'optA': q['optionA'],
+      'optB': q['optionB'],
+      'optC': q['optionC'],
+      'optD': q['optionD'],
+      'correctOpt': q['correct'],
+      'marks': int.tryParse(q['points'] ?? '1') ?? 1,
+    })
+        .toList();
+    final res = await QuizApi.updateQuiz(
+        quizId: widget.quiz['id'] as int,
+        title: _titleController.text.trim(),
+        totalMarks: int.tryParse(_marksController.text.trim()) ?? 0,
+        questions: aq);
+    if (mounted) setState(() => _isSaving = false);
+    if (res['success'] == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Quiz updated! ✅'),
+          backgroundColor: const Color(0xFF00D4AA),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12))));
+      Navigator.pop(context);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(res['message'] ?? 'Update failed'),
+          backgroundColor: const Color(0xFFFF6584),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12))));
+    }
   }
 
   @override
@@ -770,181 +1322,76 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
     super.dispose();
   }
 
-  void _addQuestion() {
-    if (_questionController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFFF6584),
-          content: const Text('Please write a question first!'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-      return;
-    }
-    HapticFeedback.lightImpact();
-    setState(() {
-      _questions.add({
-        'question': _questionController.text.trim(),
-        'optionA': _optionAController.text.trim(),
-        'optionB': _optionBController.text.trim(),
-        'optionC': _optionCController.text.trim(),
-        'optionD': _optionDController.text.trim(),
-        'correct': _correctAnswer,
-        'points': _pointsController.text.trim(),
-      });
-      _questionController.clear();
-      _optionAController.clear();
-      _optionBController.clear();
-      _optionCController.clear();
-      _optionDController.clear();
-      _pointsController.clear();
-      _correctAnswer = 'A';
-    });
-  }
-
-  void _submitQuiz() {
-    if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFFFB347),
-          content: const Text('Quiz title is required!'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-      return;
-    }
-    if (_questions.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFFF6584),
-          content: const Text('Add at least one question!'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-      return;
-    }
-    HapticFeedback.heavyImpact();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF131929),
-        shape:
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('🎉 Quiz Created!',
-            style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.w800)),
-        content: Text(
-          '"${_titleController.text}" with ${_questions.length} question(s) has been saved successfully.',
-          style:
-          TextStyle(color: Colors.white.withOpacity(0.65), height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)]),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text('Done',
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w700)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+          backgroundColor: Color(0xFF0A0E1A),
+          body: Center(
+              child: CircularProgressIndicator(color: Color(0xFF6C63FF))));
+    }
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E1A),
-      body: Stack(
-        children: [
-          CustomPaint(painter: _BackgroundPainter(), size: Size.infinite),
-          SafeArea(
-            child: FadeTransition(
-              opacity: _entryAnim,
-              child: Column(
-                children: [
-                  _buildTopBar(),
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
-                      children: [
-                        _buildQuizInfoCard(),
-                        const SizedBox(height: 16),
-                        _buildQuestionsCountBadge(),
-                        const SizedBox(height: 12),
-                        _buildQuestionForm(),
-                        if (_questions.isNotEmpty) ...[
-                          const SizedBox(height: 20),
-                          _buildAddedQuestions(),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
+      body: Stack(children: [
+        CustomPaint(painter: _BackgroundPainter(), size: Size.infinite),
+        SafeArea(
+          child: FadeTransition(
+            opacity: _entryAnim,
+            child: Column(children: [
+              _buildTopBar(),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+                  children: [
+                    _buildQuizInfoCard(),
+                    const SizedBox(height: 16),
+                    _buildQuestionsCountBadge(),
+                    const SizedBox(height: 12),
+                    _buildQuestionForm(),
+                    if (_questions.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      _buildAddedQuestions(),
+                    ],
+                  ],
+                ),
               ),
-            ),
+            ]),
           ),
-          // Submit button
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _buildSubmitBar(),
-          ),
-        ],
-      ),
+        ),
+        Positioned(bottom: 0, left: 0, right: 0, child: _buildSaveBar()),
+      ]),
     );
   }
 
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
+      child: Row(children: [
+        GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.07),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
-              ),
-              child: const Icon(Icons.close, color: Colors.white, size: 18),
-            ),
-          ),
-          const SizedBox(width: 16),
-          ShaderMask(
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [Color(0xFF00D4FF), Color(0xFF6C63FF)],
-            ).createShader(bounds),
-            child: const Text(
-              'Quiz Creator',
+                  color: Colors.white.withAlpha(18),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withAlpha(26))),
+              child:
+              const Icon(Icons.close, color: Colors.white, size: 18)),
+        ),
+        const SizedBox(width: 16),
+        ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFFFFB347), Color(0xFF6C63FF)])
+              .createShader(bounds),
+          child: const Text('Edit Quiz',
               style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-                letterSpacing: -0.5,
-              ),
-            ),
-          ),
-        ],
-      ),
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: -0.5)),
+        ),
+      ]),
     );
   }
 
@@ -953,102 +1400,60 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF131929),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF6C63FF).withOpacity(0.2)),
-      ),
-      child: Column(
-        children: [
-          _glowTextField(_titleController, 'Quiz Title', Icons.title),
-          const SizedBox(height: 12),
-          _glowTextField(
-              _marksController, 'Total Marks', Icons.star_outline,
-              keyboardType: TextInputType.number),
-        ],
-      ),
-    );
-  }
-
-  Widget _glowTextField(
-      TextEditingController controller, String hint, IconData icon,
-      {TextInputType keyboardType = TextInputType.text}) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white, fontSize: 15),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle:
-        TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 15),
-        prefixIcon: Icon(icon,
-            color: const Color(0xFF6C63FF).withOpacity(0.7), size: 20),
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.04),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
-        ),
-        contentPadding:
-        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
+          color: const Color(0xFF131929),
+          borderRadius: BorderRadius.circular(20),
+          border:
+          Border.all(color: const Color(0xFF6C63FF).withAlpha(51))),
+      child: Column(children: [
+        _glowTextField(_titleController, 'Quiz Title', Icons.title),
+        const SizedBox(height: 12),
+        _glowTextField(
+            _marksController, 'Total Marks', Icons.star_outline,
+            keyboardType: TextInputType.number),
+      ]),
     );
   }
 
   Widget _buildQuestionsCountBadge() {
-    return Row(
-      children: [
-        Container(
-          padding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                const Color(0xFF6C63FF).withOpacity(0.2),
-                const Color(0xFF00D4FF).withOpacity(0.1)
-              ],
-            ),
+    return Row(children: [
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [
+              const Color(0xFFFFB347).withAlpha(51),
+              const Color(0xFF6C63FF).withAlpha(26)
+            ]),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-                color: const Color(0xFF6C63FF).withOpacity(0.3)),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.quiz_outlined,
-                  color: Color(0xFF6C63FF), size: 16),
-              const SizedBox(width: 6),
-              Text(
-                'Questions Added: ${_questions.length}',
-                style: const TextStyle(
-                    color: Color(0xFF6C63FF),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+            border:
+            Border.all(color: const Color(0xFFFFB347).withAlpha(77))),
+        child: Row(children: [
+          const Icon(Icons.quiz_outlined,
+              color: Color(0xFFFFB347), size: 16),
+          const SizedBox(width: 6),
+          Text('Questions: ${_questions.length}',
+              style: const TextStyle(
+                  color: Color(0xFFFFB347),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13)),
+        ]),
+      ),
+    ]);
   }
 
   Widget _buildQuestionForm() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF131929),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF6C63FF).withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6C63FF).withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+          color: const Color(0xFF131929),
+          borderRadius: BorderRadius.circular(20),
+          border:
+          Border.all(color: const Color(0xFFFFB347).withAlpha(77)),
+          boxShadow: [
+            BoxShadow(
+                color: const Color(0xFFFFB347).withAlpha(20),
+                blurRadius: 20,
+                offset: const Offset(0, 8))
+          ]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1058,36 +1463,29 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
             style: const TextStyle(
                 color: Colors.white, fontSize: 15, height: 1.5),
             decoration: InputDecoration(
-              hintText: 'Write your question here...',
-              hintStyle: TextStyle(
-                  color: Colors.white.withOpacity(0.25), fontSize: 15),
-              border: InputBorder.none,
-            ),
+                hintText: 'Write your question here...',
+                hintStyle: TextStyle(
+                    color: Colors.white.withAlpha(64), fontSize: 15),
+                border: InputBorder.none),
           ),
-          Divider(color: Colors.white.withOpacity(0.08)),
+          Divider(color: Colors.white.withAlpha(20)),
           const SizedBox(height: 12),
-          ...[
-            ['A', _optionAController, const Color(0xFF6C63FF)],
-            ['B', _optionBController, const Color(0xFF00D4AA)],
-            ['C', _optionCController, const Color(0xFFFFB347)],
-            ['D', _optionDController, const Color(0xFFFF6584)],
-          ].map((item) => _optionField(
-              item[0] as String,
-              item[1] as TextEditingController,
-              item[2] as Color)),
+          _optionField('A', _optionAController, const Color(0xFF6C63FF)),
+          _optionField('B', _optionBController, const Color(0xFF00D4AA)),
+          _optionField('C', _optionCController, const Color(0xFFFFB347)),
+          _optionField('D', _optionDController, const Color(0xFFFF6584)),
           const SizedBox(height: 16),
           Text('CORRECT ANSWER',
               style: TextStyle(
-                  color: Colors.white.withOpacity(0.4),
+                  color: Colors.white.withAlpha(102),
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.2)),
           const SizedBox(height: 12),
           Row(
-            children: ['A', 'B', 'C', 'D']
-                .map((opt) => _answerRadio(opt))
-                .toList(),
-          ),
+              children: ['A', 'B', 'C', 'D']
+                  .map((opt) => _answerRadio(opt))
+                  .toList()),
           const SizedBox(height: 16),
           _glowTextField(
               _pointsController, 'Points for this question', Icons.bolt,
@@ -1099,17 +1497,15 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
               width: double.infinity,
               height: 52,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [Color(0xFF00D4FF), Color(0xFF6C63FF)]),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF6C63FF).withOpacity(0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
+                  gradient: const LinearGradient(
+                      colors: [Color(0xFFFFB347), Color(0xFF6C63FF)]),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                        color: const Color(0xFFFFB347).withAlpha(89),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6))
+                  ]),
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -1131,233 +1527,773 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
     );
   }
 
-  Widget _optionField(
-      String label, TextEditingController controller, Color color) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: TextField(
-        controller: controller,
-        style: const TextStyle(color: Colors.white, fontSize: 14),
-        decoration: InputDecoration(
-          hintText: 'Option $label',
-          hintStyle:
-          TextStyle(color: Colors.white.withOpacity(0.25), fontSize: 14),
-          prefixIcon: Container(
-            margin: const EdgeInsets.all(10),
-            width: 28,
-            height: 28,
+  Widget _buildAddedQuestions() {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text('Current Questions',
+            style: TextStyle(
+                color: Colors.white.withAlpha(153),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5)),
+      ),
+      ..._questions.asMap().entries.map((entry) {
+        final i = entry.key;
+        final q = entry.value;
+        return Dismissible(
+          key: ValueKey('edit-$i-${q['question']}'),
+          onDismissed: (_) {
+            setState(() => _questions.removeAt(i));
+            HapticFeedback.mediumImpact();
+          },
+          background: Container(
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Center(
-              child: Text(label,
+                color: const Color(0xFFFF6584).withAlpha(38),
+                borderRadius: BorderRadius.circular(16)),
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            child: const Icon(Icons.delete, color: Color(0xFFFF6584)),
+          ),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+                color: const Color(0xFF131929),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withAlpha(15))),
+            child:
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFFFB347).withAlpha(38),
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Text('Q${i + 1}',
+                      style: const TextStyle(
+                          color: Color(0xFFFFB347),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(q['question'],
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              Row(children: [
+                const Icon(Icons.check_circle,
+                    color: Color(0xFF00D4AA), size: 14),
+                const SizedBox(width: 4),
+                Text('Answer: ${q['correct']}  •  ${q['points']} pts',
+                    style: TextStyle(
+                        color: Colors.white.withAlpha(115), fontSize: 12)),
+              ]),
+            ]),
+          ),
+        );
+      }),
+    ]);
+  }
+
+  Widget _buildSaveBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0E1A),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withAlpha(128),
+              blurRadius: 12,
+              offset: const Offset(0, -4))
+        ],
+      ),
+      child: GestureDetector(
+        onTap: _isSaving ? null : _saveQuiz,
+        child: Container(
+          height: 54,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+                colors: [Color(0xFF00D4AA), Color(0xFF00A878)]),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                  color: const Color(0xFF00D4AA).withAlpha(89),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6))
+            ],
+          ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            if (_isSaving)
+              const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2))
+            else ...[
+              const Icon(Icons.save, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              const Text('Save Changes',
                   style: TextStyle(
-                      color: color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800)),
-            ),
-          ),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.04),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: color, width: 1.5),
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700)),
+            ]
+          ]),
         ),
       ),
     );
   }
 
-  Widget _answerRadio(String option) {
-    final colors = {
-      'A': const Color(0xFF6C63FF),
-      'B': const Color(0xFF00D4AA),
-      'C': const Color(0xFFFFB347),
-      'D': const Color(0xFFFF6584),
-    };
-    final color = colors[option]!;
-    final selected = _correctAnswer == option;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _correctAnswer = option),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.only(right: 8),
-          height: 44,
-          decoration: BoxDecoration(
-            color: selected ? color.withOpacity(0.2) : Colors.white.withOpacity(0.04),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected ? color : Colors.white.withOpacity(0.1),
-              width: selected ? 1.5 : 1,
-            ),
-          ),
-          child: Center(
-            child: Text(option,
-                style: TextStyle(
-                    color: selected ? color : Colors.white.withOpacity(0.4),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14)),
+  Widget _glowTextField(TextEditingController controller, String hint,
+      IconData icon, {TextInputType keyboardType = TextInputType.text}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+          color: Colors.white.withAlpha(8),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withAlpha(20))),
+      child: Row(children: [
+        Icon(icon, color: Colors.white.withAlpha(128), size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+            decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: TextStyle(color: Colors.white.withAlpha(77)),
+                border: InputBorder.none),
           ),
         ),
+      ]),
+    );
+  }
+
+  Widget _optionField(String label, TextEditingController controller, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        decoration: BoxDecoration(
+            color: color.withAlpha(26),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withAlpha(77))),
+        child: Row(children: [
+          Container(
+            width: 26,
+            height: 26,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: color.withAlpha(77),
+                borderRadius: BorderRadius.circular(8)),
+            child: Text(label,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w700)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: const InputDecoration(
+                  hintText: 'Option',
+                  hintStyle: TextStyle(color: Colors.white54),
+                  border: InputBorder.none),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _answerRadio(String opt) {
+    final selected = _correctAnswer == opt;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _correctAnswer = opt);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+            color: selected ? const Color(0xFF6C63FF) : Colors.white24,
+            borderRadius: BorderRadius.circular(12)),
+        child: Text(opt,
+            style: TextStyle(
+                color: selected ? Colors.white : Colors.white70,
+                fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+}
+
+class QuizCreatorScreen extends StatefulWidget {
+  const QuizCreatorScreen({super.key});
+
+  @override
+  State<QuizCreatorScreen> createState() => _QuizCreatorScreenState();
+}
+
+class _QuizCreatorScreenState extends State<QuizCreatorScreen>
+    with TickerProviderStateMixin {
+  final _titleController = TextEditingController();
+  final _marksController = TextEditingController();
+  final _questionController = TextEditingController();
+  final _optionAController = TextEditingController();
+  final _optionBController = TextEditingController();
+  final _optionCController = TextEditingController();
+  final _optionDController = TextEditingController();
+  final _pointsController = TextEditingController();
+  String _correctAnswer = 'A';
+  List<Map<String, dynamic>> _questions = [];
+  bool _isSaving = false;
+  late AnimationController _entryController;
+  late Animation<double> _entryAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _entryController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 700));
+    _entryAnim = CurvedAnimation(
+        parent: _entryController, curve: Curves.easeOutCubic);
+    _entryController.forward();
+  }
+
+  void _addQuestion() {
+    if (_questionController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: const Color(0xFFFF6584),
+          content: const Text('Write a question first!'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12))));
+      return;
+    }
+    HapticFeedback.lightImpact();
+    setState(() {
+      _questions.add({
+        'question': _questionController.text.trim(),
+        'optionA': _optionAController.text.trim(),
+        'optionB': _optionBController.text.trim(),
+        'optionC': _optionCController.text.trim(),
+        'optionD': _optionDController.text.trim(),
+        'correct': _correctAnswer,
+        'points': _pointsController.text.trim().isEmpty
+            ? '1'
+            : _pointsController.text.trim(),
+      });
+      _questionController.clear();
+      _optionAController.clear();
+      _optionBController.clear();
+      _optionCController.clear();
+      _optionDController.clear();
+      _pointsController.clear();
+      _correctAnswer = 'A';
+    });
+  }
+
+  Future<void> _saveQuiz() async {
+    if (_titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: const Color(0xFFFFB347),
+          content: const Text('Title required!'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12))));
+      return;
+    }
+    if (_questions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: const Color(0xFFFF6584),
+          content: const Text('Add at least one question!'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12))));
+      return;
+    }
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+    HapticFeedback.heavyImpact();
+
+    final aq = _questions
+        .map((q) => {
+      'questionText': q['question'],
+      'optA': q['optionA'],
+      'optB': q['optionB'],
+      'optC': q['optionC'],
+      'optD': q['optionD'],
+      'correctOpt': q['correct'],
+      'marks': int.tryParse(q['points'] ?? '1') ?? 1,
+    })
+        .toList();
+
+    final res = await QuizApi.createQuiz(
+        title: _titleController.text.trim(),
+        totalMarks: int.tryParse(_marksController.text.trim()) ?? 0,
+        questions: aq);
+
+    if (mounted) setState(() => _isSaving = false);
+
+    if (res['success'] == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Quiz created! ✅'),
+          backgroundColor: const Color(0xFF00D4AA),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12))));
+      Navigator.pop(context);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(res['message'] ?? 'Create failed'),
+          backgroundColor: const Color(0xFFFF6584),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12))));
+    }
+  }
+
+  @override
+  void dispose() {
+    _entryController.dispose();
+    _titleController.dispose();
+    _marksController.dispose();
+    _questionController.dispose();
+    _optionAController.dispose();
+    _optionBController.dispose();
+    _optionCController.dispose();
+    _optionDController.dispose();
+    _pointsController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0E1A),
+      body: Stack(children: [
+        CustomPaint(painter: _BackgroundPainter(), size: Size.infinite),
+        SafeArea(
+          child: FadeTransition(
+            opacity: _entryAnim,
+            child: Column(children: [
+              _buildTopBar(),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+                  children: [
+                    _buildQuizInfoCard(),
+                    const SizedBox(height: 16),
+                    _buildQuestionsCountBadge(),
+                    const SizedBox(height: 12),
+                    _buildQuestionForm(),
+                    if (_questions.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      _buildAddedQuestions(),
+                    ],
+                  ],
+                ),
+              ),
+            ]),
+          ),
+        ),
+        Positioned(bottom: 0, left: 0, right: 0, child: _buildSaveBar()),
+      ]),
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Row(children: [
+        GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(18),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withAlpha(26))),
+              child:
+              const Icon(Icons.close, color: Colors.white, size: 18)),
+        ),
+        const SizedBox(width: 16),
+        ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)])
+              .createShader(bounds),
+          child: const Text('Create Quiz',
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: -0.5)),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildQuizInfoCard() {
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+          color: const Color(0xFF131929),
+          borderRadius: BorderRadius.circular(20),
+          border:
+          Border.all(color: const Color(0xFF6C63FF).withAlpha(51))),
+      child: Column(children: [
+        _glowTextField(_titleController, 'Quiz Title', Icons.title),
+        const SizedBox(height: 12),
+        _glowTextField(
+            _marksController, 'Total Marks', Icons.star_outline,
+            keyboardType: TextInputType.number),
+      ]),
+    );
+  }
+
+  Widget _buildQuestionsCountBadge() {
+    return Row(children: [
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [
+              const Color(0xFF6C63FF).withAlpha(51),
+              const Color(0xFF00D4FF).withAlpha(26)
+            ]),
+            borderRadius: BorderRadius.circular(20),
+            border:
+            Border.all(color: const Color(0xFF6C63FF).withAlpha(77))),
+        child: Row(children: [
+          const Icon(Icons.quiz_outlined,
+              color: Color(0xFF6C63FF), size: 16),
+          const SizedBox(width: 6),
+          Text('Questions: ${_questions.length}',
+              style: const TextStyle(
+                  color: Color(0xFF6C63FF),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13)),
+        ]),
+      ),
+    ]);
+  }
+
+  Widget _buildQuestionForm() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+          color: const Color(0xFF131929),
+          borderRadius: BorderRadius.circular(20),
+          border:
+          Border.all(color: const Color(0xFF6C63FF).withAlpha(77)),
+          boxShadow: [
+            BoxShadow(
+                color: const Color(0xFF6C63FF).withAlpha(20),
+                blurRadius: 20,
+                offset: const Offset(0, 8))
+          ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _questionController,
+            maxLines: 3,
+            style: const TextStyle(
+                color: Colors.white, fontSize: 15, height: 1.5),
+            decoration: InputDecoration(
+                hintText: 'Write your question here...',
+                hintStyle: TextStyle(
+                    color: Colors.white.withAlpha(64), fontSize: 15),
+                border: InputBorder.none),
+          ),
+          Divider(color: Colors.white.withAlpha(20)),
+          const SizedBox(height: 12),
+          _optionField('A', _optionAController, const Color(0xFF6C63FF)),
+          _optionField('B', _optionBController, const Color(0xFF00D4AA)),
+          _optionField('C', _optionCController, const Color(0xFFFFB347)),
+          _optionField('D', _optionDController, const Color(0xFFFF6584)),
+          const SizedBox(height: 16),
+          Text('CORRECT ANSWER',
+              style: TextStyle(
+                  color: Colors.white.withAlpha(102),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2)),
+          const SizedBox(height: 12),
+          Row(
+              children: ['A', 'B', 'C', 'D']
+                  .map((opt) => _answerRadio(opt))
+                  .toList()),
+          const SizedBox(height: 16),
+          _glowTextField(
+              _pointsController, 'Points for this question', Icons.bolt,
+              keyboardType: TextInputType.number),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: _addQuestion,
+            child: Container(
+              width: double.infinity,
+              height: 52,
+              decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                      colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)]),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                        color: const Color(0xFF6C63FF).withAlpha(89),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6))
+                  ]),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_circle_outline,
+                      color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Text('Add Question',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3)),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildAddedQuestions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Text('Added Questions',
-              style: TextStyle(
-                  color: Colors.white.withOpacity(0.6),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5)),
-        ),
-        ..._questions.asMap().entries.map((entry) {
-          final i = entry.key;
-          final q = entry.value;
-          return Dismissible(
-            key: ValueKey(i),
-            onDismissed: (_) {
-              setState(() => _questions.removeAt(i));
-              HapticFeedback.mediumImpact();
-            },
-            background: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF6584).withOpacity(0.15),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 20),
-              child: const Icon(Icons.delete, color: Color(0xFFFF6584)),
-            ),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text('Added Questions',
+            style: TextStyle(
+                color: Colors.white.withAlpha(153),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5)),
+      ),
+      ..._questions.asMap().entries.map((entry) {
+        final i = entry.key;
+        final q = entry.value;
+        return Dismissible(
+          key: ValueKey('create-$i-${q['question']}'),
+          onDismissed: (_) {
+            setState(() => _questions.removeAt(i));
+            HapticFeedback.mediumImpact();
+          },
+          background: Container(
+            decoration: BoxDecoration(
+                color: const Color(0xFFFF6584).withAlpha(38),
+                borderRadius: BorderRadius.circular(16)),
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            child: const Icon(Icons.delete, color: Color(0xFFFF6584)),
+          ),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
                 color: const Color(0xFF131929),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: Colors.white.withOpacity(0.06)),
-              ),
-              child: Column(
+                border: Border.all(color: Colors.white.withAlpha(15))),
+            child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF6C63FF).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text('Q${i + 1}',
-                            style: const TextStyle(
-                                color: Color(0xFF6C63FF),
-                                fontWeight: FontWeight.w800,
-                                fontSize: 12)),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          q['question'],
+                  Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                          color: const Color(0xFF6C63FF).withAlpha(38),
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Text('Q${i + 1}',
+                          style: const TextStyle(
+                              color: Color(0xFF6C63FF),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(q['question'],
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.w600),
                           maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ]),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.check_circle,
-                          color: const Color(0xFF00D4AA), size: 14),
-                      const SizedBox(width: 4),
-                      Text('Answer: ${q['correct']}  •  ${q['points']} pts',
-                          style: TextStyle(
-                              color: Colors.white.withOpacity(0.45),
-                              fontSize: 12)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Center(
-            child: Text('← Swipe to delete →',
-                style: TextStyle(
-                    color: Colors.white.withOpacity(0.2),
-                    fontSize: 11)),
+                  Row(children: [
+                    const Icon(Icons.check_circle,
+                        color: Color(0xFF00D4AA), size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                        'Answer: ${q['correct']}  •  ${q['points']} pts',
+                        style: TextStyle(
+                            color: Colors.white.withAlpha(115),
+                            fontSize: 12)),
+                  ]),
+                ]),
           ),
-        ),
-      ],
-    );
+        );
+      }),
+    ]);
   }
 
-  Widget _buildSubmitBar() {
+  Widget _buildSaveBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            const Color(0xFF0A0E1A).withOpacity(0),
-            const Color(0xFF0A0E1A),
-          ],
-        ),
+        color: const Color(0xFF0A0E1A),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withAlpha(128),
+              blurRadius: 12,
+              offset: const Offset(0, -4))
+        ],
       ),
       child: GestureDetector(
-        onTap: _submitQuiz,
+        onTap: _isSaving ? null : _saveQuiz,
         child: Container(
-          height: 56,
+          height: 54,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF6C63FF), Color(0xFF9B4DCA)],
-            ),
+                colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)]),
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF6C63FF).withOpacity(0.4),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
+                  color: const Color(0xFF6C63FF).withAlpha(89),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6))
             ],
           ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.rocket_launch_outlined,
+          child:
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            if (_isSaving)
+              const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2))
+            else ...[
+              const Icon(Icons.rocket_launch_outlined,
                   color: Colors.white, size: 20),
-              SizedBox(width: 10),
-              Text('Finalize & Publish',
+              const SizedBox(width: 8),
+              const Text('Publish Quiz',
                   style: TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.3)),
-            ],
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700)),
+            ]
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _glowTextField(TextEditingController controller, String hint,
+      IconData icon,
+      {TextInputType keyboardType = TextInputType.text}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+          color: Colors.white.withAlpha(8),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withAlpha(20))),
+      child: Row(children: [
+        Icon(icon, color: Colors.white.withAlpha(128), size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+            decoration: InputDecoration(
+                hintText: hint,
+                hintStyle:
+                TextStyle(color: Colors.white.withAlpha(77)),
+                border: InputBorder.none),
           ),
         ),
+      ]),
+    );
+  }
+
+  Widget _optionField(
+      String label, TextEditingController controller, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        decoration: BoxDecoration(
+            color: color.withAlpha(26),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withAlpha(77))),
+        child: Row(children: [
+          Container(
+            width: 26,
+            height: 26,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: color.withAlpha(77),
+                borderRadius: BorderRadius.circular(8)),
+            child: Text(label,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w700)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: const InputDecoration(
+                  hintText: 'Option',
+                  hintStyle: TextStyle(color: Colors.white54),
+                  border: InputBorder.none),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _answerRadio(String opt) {
+    final selected = _correctAnswer == opt;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _correctAnswer = opt);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding:
+        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xFF6C63FF)
+                : Colors.white24,
+            borderRadius: BorderRadius.circular(12)),
+        child: Text(opt,
+            style: TextStyle(
+                color: selected ? Colors.white : Colors.white70,
+                fontWeight: FontWeight.w700)),
       ),
     );
   }

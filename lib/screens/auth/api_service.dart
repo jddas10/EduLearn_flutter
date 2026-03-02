@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 
-const String kBaseUrl = 'https://briefs-jail-lodging-swimming.trycloudflare.com';
+const String kBaseUrl = 'https://plastics-venice-potter-abu.trycloudflare.com';
 const Duration kTimeout = Duration(seconds: 20);
 
 class SessionStore {
@@ -319,7 +319,6 @@ class LectureApi {
   static Future<Map<String, dynamic>> getLectures() =>
       _Http.get('/lectures');
 
-  // ✅ ADD HERE
   static Future<Map<String, dynamic>> getBookmarks() =>
       _Http.get('/bookmarks');
 
@@ -329,4 +328,63 @@ class LectureApi {
 
 class MarksApi {
   static Future<Map<String, dynamic>> getMyMarks() => _Http.get('/marks/student');
+}
+
+class QuizApi {
+  static Future<Map<String, dynamic>> getTeacherQuizzes() =>
+      _Http.get('/api/quiz/teacher');
+
+  static Future<Map<String, dynamic>> createQuiz({
+    required String title,
+    required int totalMarks,
+    required List<Map<String, dynamic>> questions,
+  }) =>
+      _Http.post('/api/quiz/create', {
+        'title': title,
+        'totalMarks': totalMarks,
+        'questions': questions,
+      });
+
+  static Future<Map<String, dynamic>> updateQuiz({
+    required int quizId,
+    required String title,
+    required int totalMarks,
+    required List<Map<String, dynamic>> questions,
+  }) =>
+      _Http.put('/api/quiz/$quizId', {
+        'title': title,
+        'totalMarks': totalMarks,
+        'questions': questions,
+      });
+
+  static Future<Map<String, dynamic>> getQuizFull(int quizId) =>
+      _Http.get('/api/quiz/$quizId/full');
+
+  static Future<Map<String, dynamic>> duplicateQuiz(int quizId) =>
+      _Http.post('/api/quiz/$quizId/duplicate', {});
+
+  static Future<Map<String, dynamic>> deleteQuiz(int quizId) =>
+      _Http.delete('/api/quiz/$quizId');
+
+  static Future<Map<String, dynamic>> getQuizResults(int quizId) =>
+      _Http.get('/api/quiz/$quizId/results');
+
+  static Future<Map<String, dynamic>> getStudentQuizzes() =>
+      _Http.get('/api/quiz/student');
+
+  static Future<Map<String, dynamic>> getQuizByLink(int quizId) =>
+      _Http.get('/api/quiz/by-link/$quizId');
+
+  static Future<Map<String, dynamic>> getQuizQuestions(int quizId) =>
+      _Http.get('/api/quiz/$quizId/questions');
+
+  static Future<Map<String, dynamic>> submitQuiz({
+    required int quizId,
+    required Map<String, String> answers,
+    bool cheated = false,
+  }) =>
+      _Http.post('/api/quiz/$quizId/submit', {
+        'answers': answers,
+        'cheated': cheated,
+      });
 }
