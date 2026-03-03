@@ -1,21 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
-import '../auth/api_service.dart';
+import '../auth/session_store_api2.dart';
 
 class _BackgroundPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..style = PaintingStyle.fill;
     paint.color = const Color(0xFF6C63FF).withAlpha(13);
-    canvas.drawCircle(
-        Offset(size.width * 0.8, size.height * 0.15), 180, paint);
+    canvas.drawCircle(Offset(size.width * 0.8, size.height * 0.15), 180, paint);
     paint.color = const Color(0xFF00D4AA).withAlpha(10);
-    canvas.drawCircle(
-        Offset(size.width * 0.2, size.height * 0.7), 200, paint);
+    canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.7), 200, paint);
     paint.color = const Color(0xFFFF6584).withAlpha(8);
-    canvas.drawCircle(
-        Offset(size.width * 0.9, size.height * 0.85), 150, paint);
+    canvas.drawCircle(Offset(size.width * 0.9, size.height * 0.85), 150, paint);
   }
 
   @override
@@ -47,8 +44,8 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
         vsync: this, duration: const Duration(milliseconds: 600));
     _listController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1200));
-    _headerAnim = CurvedAnimation(
-        parent: _headerController, curve: Curves.easeOutCubic);
+    _headerAnim =
+        CurvedAnimation(parent: _headerController, curve: Curves.easeOutCubic);
     _fabAnim =
         CurvedAnimation(parent: _fabController, curve: Curves.elasticOut);
     _headerController.forward();
@@ -150,8 +147,7 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
     return FadeTransition(
       opacity: _headerAnim,
       child: SlideTransition(
-        position: Tween<Offset>(
-            begin: const Offset(0, -0.3), end: Offset.zero)
+        position: Tween<Offset>(begin: const Offset(0, -0.3), end: Offset.zero)
             .animate(_headerAnim),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -160,13 +156,11 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
               GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: Container(
-                  width: 42,
-                  height: 42,
+                  width: 42, height: 42,
                   decoration: BoxDecoration(
                     color: Colors.white.withAlpha(18),
                     borderRadius: BorderRadius.circular(12),
-                    border:
-                    Border.all(color: Colors.white.withAlpha(26), width: 1),
+                    border: Border.all(color: Colors.white.withAlpha(26)),
                   ),
                   child: const Icon(Icons.arrow_back_ios_new,
                       color: Colors.white, size: 16),
@@ -180,29 +174,23 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
                     shaderCallback: (bounds) => const LinearGradient(
                       colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)],
                     ).createShader(bounds),
-                    child: const Text(
-                      'Quiz Studio',
+                    child: const Text('Quiz Studio',
+                        style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: -0.5)),
+                  ),
+                  Text('Manage & Create Quizzes',
                       style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    'Manage & Create Quizzes',
-                    style: TextStyle(
-                        color: Colors.white.withAlpha(128),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400),
-                  ),
+                          color: Colors.white.withAlpha(128),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400)),
                 ],
               ),
               const Spacer(),
               Container(
-                width: 42,
-                height: 42,
+                width: 42, height: 42,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                       colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)]),
@@ -298,9 +286,7 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
               return Opacity(
                 opacity: curve,
                 child: Transform.translate(
-                  offset: Offset(0, 40 * (1 - curve)),
-                  child: child,
-                ),
+                    offset: Offset(0, 40 * (1 - curve)), child: child),
               );
             },
             child: _buildQuizCard(_quizzes[index], index),
@@ -312,26 +298,11 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
 
   Widget _buildQuizCard(Map<String, dynamic> quiz, int index) {
     final color = quiz['color'] as Color;
-    final status = quiz['status'] as String;
     final submissions = quiz['submissions'] as int;
     final total = quiz['total'] as int;
     final progress = total > 0 ? submissions / total : 0.0;
-
-    Color statusColor;
-    IconData statusIcon;
-    switch (status) {
-      case 'Active':
-        statusColor = const Color(0xFF00D4AA);
-        statusIcon = Icons.radio_button_checked;
-        break;
-      case 'Pending':
-        statusColor = const Color(0xFFFFB347);
-        statusIcon = Icons.schedule;
-        break;
-      default:
-        statusColor = Colors.white38;
-        statusIcon = Icons.check_circle_outline;
-    }
+    final questions = quiz['questions'] as int;
+    final totalMarks = quiz['totalMarks'] as int;
 
     return GestureDetector(
       onTap: () => _showQuizOptions(quiz),
@@ -350,11 +321,12 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
         ),
         child: Column(
           children: [
+            // Top color bar
             Container(
               height: 4,
               decoration: BoxDecoration(
-                gradient:
-                LinearGradient(colors: [color, color.withAlpha(77)]),
+                gradient: LinearGradient(
+                    colors: [color, color.withAlpha(77)]),
                 borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(20)),
               ),
@@ -367,8 +339,7 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
                   Row(
                     children: [
                       Container(
-                        width: 46,
-                        height: 46,
+                        width: 46, height: 46,
                         decoration: BoxDecoration(
                           color: color.withAlpha(38),
                           borderRadius: BorderRadius.circular(14),
@@ -388,32 +359,52 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: -0.3)),
-                            const SizedBox(height: 3),
-                            Text(quiz['subject'] ?? '',
-                                style: TextStyle(
-                                    color: color,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 4),
+                            // ✅ Questions + Marks info
+                            Row(
+                              children: [
+                                Icon(Icons.help_outline,
+                                    color: color, size: 12),
+                                const SizedBox(width: 4),
+                                Text('$questions Qs',
+                                    style: TextStyle(
+                                        color: color,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600)),
+                                const SizedBox(width: 10),
+                                Icon(Icons.star_outline,
+                                    color: Colors.white.withAlpha(128),
+                                    size: 12),
+                                const SizedBox(width: 4),
+                                Text('$totalMarks Marks',
+                                    style: TextStyle(
+                                        color: Colors.white.withAlpha(128),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500)),
+                              ],
+                            ),
                           ],
                         ),
                       ),
+                      // ✅ Active badge
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: statusColor.withAlpha(31),
+                          color: const Color(0xFF00D4AA).withAlpha(31),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: statusColor.withAlpha(77), width: 1),
+                              color: const Color(0xFF00D4AA).withAlpha(77)),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(statusIcon, color: statusColor, size: 10),
-                            const SizedBox(width: 4),
-                            Text(status,
+                            Icon(Icons.radio_button_checked,
+                                color: Color(0xFF00D4AA), size: 10),
+                            SizedBox(width: 4),
+                            Text('Active',
                                 style: TextStyle(
-                                    color: statusColor,
+                                    color: Color(0xFF00D4AA),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700)),
                           ],
@@ -421,52 +412,56 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
+                  // Progress
                   Row(
                     children: [
-                      _infoChip('${quiz['questions']} Qs',
-                          Icons.help_outline, Colors.white.withAlpha(153)),
-                      const SizedBox(width: 12),
-                      _infoChip('${quiz['totalMarks']} Marks',
-                          Icons.star_outline, Colors.white.withAlpha(153)),
-                      const Spacer(),
-                      Text('$submissions/$total',
-                          style: TextStyle(
-                              color: Colors.white.withAlpha(179),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600)),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: progress,
+                                backgroundColor: Colors.white.withAlpha(15),
+                                valueColor:
+                                AlwaysStoppedAnimation<Color>(color),
+                                minHeight: 5,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                                '$submissions/$total submitted  •  ${(progress * 100).toInt()}%',
+                                style: TextStyle(
+                                    color: Colors.white.withAlpha(89),
+                                    fontSize: 11)),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: Colors.white.withAlpha(15),
-                      valueColor: AlwaysStoppedAnimation<Color>(color),
-                      minHeight: 5,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text('${(progress * 100).toInt()}% submitted',
-                      style: TextStyle(
-                          color: Colors.white.withAlpha(89), fontSize: 11)),
                 ],
               ),
             ),
+            // ✅ FIXED FOOTER — clean design
             Container(
               padding:
               const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withAlpha(8),
+                color: Colors.white.withAlpha(5),
                 borderRadius: const BorderRadius.vertical(
                     bottom: Radius.circular(20)),
-                border: Border(
-                    top: BorderSide(color: Colors.white.withAlpha(15))),
+                border:
+                Border(top: BorderSide(color: Colors.white.withAlpha(13))),
               ),
               child: Row(
                 children: [
-                  GestureDetector(
+                  // View Results button
+                  _footerBtn(
+                    icon: Icons.bar_chart_rounded,
+                    label: 'Results',
+                    color: color,
                     onTap: () {
                       HapticFeedback.lightImpact();
                       Navigator.push(
@@ -479,18 +474,15 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
                               transitionDuration:
                               const Duration(milliseconds: 400)));
                     },
-                    child: Row(children: [
-                      Icon(Icons.bar_chart, color: color, size: 16),
-                      const SizedBox(width: 5),
-                      Text('View Results',
-                          style: TextStyle(
-                              color: color,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600)),
-                    ]),
                   ),
-                  const SizedBox(width: 10),
-                  GestureDetector(
+                  const SizedBox(width: 6),
+                  _footerDivider(),
+                  const SizedBox(width: 6),
+                  // Edit button
+                  _footerBtn(
+                    icon: Icons.edit_outlined,
+                    label: 'Edit',
+                    color: Colors.white.withAlpha(153),
                     onTap: () {
                       HapticFeedback.lightImpact();
                       Navigator.push(
@@ -503,22 +495,30 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
                               const Duration(milliseconds: 400)))
                           .then((_) => _fetchQuizzes());
                     },
-                    child: Row(children: [
-                      Icon(Icons.edit_outlined,
-                          color: Colors.white.withAlpha(128), size: 16),
-                      const SizedBox(width: 5),
-                      Text('Edit',
-                          style: TextStyle(
-                              color: Colors.white.withAlpha(128),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600)),
-                    ]),
+                  ),
+                  const SizedBox(width: 6),
+                  _footerDivider(),
+                  const SizedBox(width: 6),
+                  // Share button
+                  _footerBtn(
+                    icon: Icons.notifications_outlined,
+                    label: 'Notify',
+                    color: const Color(0xFF00D4AA),
+                    onTap: () => _showQuizOptions(quiz),
                   ),
                   const Spacer(),
+                  // Delete button
                   GestureDetector(
                     onTap: () => _confirmDelete(index),
-                    child: Icon(Icons.delete_outline,
-                        color: Colors.white.withAlpha(77), size: 20),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF6584).withAlpha(20),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.delete_outline,
+                          color: Color(0xFFFF6584), size: 18),
+                    ),
                   ),
                 ],
               ),
@@ -529,14 +529,35 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
     );
   }
 
-  Widget _infoChip(String label, IconData icon, Color color) {
-    return Row(children: [
-      Icon(icon, color: color, size: 14),
-      const SizedBox(width: 4),
-      Text(label,
-          style: TextStyle(
-              color: color, fontSize: 12, fontWeight: FontWeight.w500)),
-    ]);
+  Widget _footerBtn({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 15),
+          const SizedBox(width: 4),
+          Text(label,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  Widget _footerDivider() {
+    return Container(
+      width: 1,
+      height: 14,
+      color: Colors.white.withAlpha(20),
+    );
   }
 
   Widget _buildCreateFAB() {
@@ -635,6 +656,9 @@ class _TeacherQuizScreenState extends State<TeacherQuizScreen>
   }
 }
 
+// ============================================================
+// QUIZ OPTIONS BOTTOM SHEET
+// ============================================================
 class _QuizOptionsSheet extends StatelessWidget {
   final Map<String, dynamic> quiz;
   final VoidCallback onRefresh;
@@ -652,16 +676,14 @@ class _QuizOptionsSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-              width: 40,
-              height: 4,
+              width: 40, height: 4,
               decoration: BoxDecoration(
                   color: Colors.white.withAlpha(51),
                   borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 20),
           Row(children: [
             Container(
-                width: 50,
-                height: 50,
+                width: 50, height: 50,
                 decoration: BoxDecoration(
                     color: color.withAlpha(38),
                     borderRadius: BorderRadius.circular(14)),
@@ -678,77 +700,89 @@ class _QuizOptionsSheet extends StatelessWidget {
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w700)),
-                    Text(quiz['subject'] ?? '',
+                    Text('${quiz['questions']} Questions  •  ${quiz['totalMarks']} Marks',
                         style: TextStyle(color: color, fontSize: 13)),
                   ]),
             ),
           ]),
           const SizedBox(height: 24),
-          _sheetOption(Icons.bar_chart_rounded, 'View Results',
-              'See student performance', color, () {
-                Navigator.pop(context);
-                Navigator.push(
-                    context,
-                    PageRouteBuilder(
-                        pageBuilder: (_, a, __) => FadeTransition(
-                            opacity: a,
-                            child: QuizResultsViewScreen(quiz: quiz)),
-                        transitionDuration:
-                        const Duration(milliseconds: 400)));
-              }),
-          _sheetOption(Icons.edit_outlined, 'Edit Quiz',
-              'Modify questions or settings', const Color(0xFFFFB347), () {
-                Navigator.pop(context);
-                Navigator.push(
-                    context,
-                    PageRouteBuilder(
-                        pageBuilder: (_, a, __) => FadeTransition(
-                            opacity: a,
-                            child: QuizEditorScreen(quiz: quiz)),
-                        transitionDuration:
-                        const Duration(milliseconds: 400)))
-                    .then((_) => onRefresh());
-              }),
-          _sheetOption(Icons.share_outlined, 'Share Quiz',
-              'Generate link for WhatsApp', const Color(0xFF00D4AA), () {
-                Navigator.pop(context);
-                final link = 'https://edulearn.app/quiz/${quiz['id']}';
-                final msg =
-                    '📝 *${quiz['title']}*\n\nAttempt this quiz on EduLearn:\n$link';
-                Clipboard.setData(ClipboardData(text: msg));
-                HapticFeedback.mediumImpact();
+          _sheetOption(
+              Icons.bar_chart_rounded,
+              'View Results',
+              'See student performance',
+              color, () {
+            Navigator.pop(context);
+            Navigator.push(
+                context,
+                PageRouteBuilder(
+                    pageBuilder: (_, a, __) => FadeTransition(
+                        opacity: a,
+                        child: QuizResultsViewScreen(quiz: quiz)),
+                    transitionDuration: const Duration(milliseconds: 400)));
+          }),
+          _sheetOption(
+              Icons.edit_outlined,
+              'Edit Quiz',
+              'Modify questions or settings',
+              const Color(0xFFFFB347), () {
+            Navigator.pop(context);
+            Navigator.push(
+                context,
+                PageRouteBuilder(
+                    pageBuilder: (_, a, __) => FadeTransition(
+                        opacity: a, child: QuizEditorScreen(quiz: quiz)),
+                    transitionDuration: const Duration(milliseconds: 400)))
+                .then((_) => onRefresh());
+          }),
+          // ✅ NOTIFY STUDENTS — FCM
+          _sheetOption(
+              Icons.notifications_active_outlined,
+              'Notify Students',
+              'Send push notification to all students',
+              const Color(0xFF00D4AA), () async {
+            Navigator.pop(context);
+            HapticFeedback.mediumImpact();
+            final res = await QuizApi.notifyStudents(quiz['id'] as int);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(res['success'] == true
+                      ? '🔔 Notification sent to all students!'
+                      : res['message'] ?? 'Failed to notify'),
+                  backgroundColor: res['success'] == true
+                      ? const Color(0xFF00D4AA)
+                      : const Color(0xFFFF6584),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12))));
+            }
+          }),
+          _sheetOption(
+              Icons.copy_outlined,
+              'Duplicate Quiz',
+              'Create a copy',
+              Colors.white54, () async {
+            Navigator.pop(context);
+            HapticFeedback.mediumImpact();
+            final res = await QuizApi.duplicateQuiz(quiz['id'] as int);
+            if (res['success'] == true) {
+              onRefresh();
+              if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content:
-                    const Text('Quiz link copied! Paste in WhatsApp 📲'),
+                    content: const Text('Quiz duplicated! ✅'),
                     backgroundColor: const Color(0xFF00D4AA),
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12))));
-              }),
-          _sheetOption(Icons.copy_outlined, 'Duplicate Quiz', 'Create a copy',
-              Colors.white54, () async {
-                Navigator.pop(context);
-                HapticFeedback.mediumImpact();
-                final res = await QuizApi.duplicateQuiz(quiz['id'] as int);
-                if (res['success'] == true) {
-                  onRefresh();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: const Text('Quiz duplicated! ✅'),
-                        backgroundColor: const Color(0xFF00D4AA),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12))));
-                  }
-                } else if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(res['message'] ?? 'Duplicate failed'),
-                      backgroundColor: const Color(0xFFFF6584),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12))));
-                }
-              }),
+              }
+            } else if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(res['message'] ?? 'Duplicate failed'),
+                  backgroundColor: const Color(0xFFFF6584),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12))));
+            }
+          }),
         ],
       ),
     );
@@ -787,6 +821,9 @@ class _QuizOptionsSheet extends StatelessWidget {
   }
 }
 
+// ============================================================
+// QUIZ RESULTS VIEW SCREEN
+// ============================================================
 class QuizResultsViewScreen extends StatefulWidget {
   final Map<String, dynamic> quiz;
   const QuizResultsViewScreen({super.key, required this.quiz});
@@ -809,8 +846,8 @@ class _QuizResultsViewScreenState extends State<QuizResultsViewScreen>
         vsync: this, duration: const Duration(milliseconds: 800));
     _listController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1200));
-    _entryAnim = CurvedAnimation(
-        parent: _entryController, curve: Curves.easeOutCubic);
+    _entryAnim =
+        CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic);
     _entryController.forward();
     _fetchResults();
   }
@@ -821,8 +858,7 @@ class _QuizResultsViewScreenState extends State<QuizResultsViewScreen>
       final res = await QuizApi.getQuizResults(widget.quiz['id'] as int);
       if (res['success'] == true && mounted) {
         setState(() {
-          _results =
-          List<Map<String, dynamic>>.from(res['results'] ?? []);
+          _results = List<Map<String, dynamic>>.from(res['results'] ?? []);
           _isLoading = false;
         });
         _listController.forward();
@@ -870,8 +906,7 @@ class _QuizResultsViewScreenState extends State<QuizResultsViewScreen>
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Container(
-                        width: 42,
-                        height: 42,
+                        width: 42, height: 42,
                         decoration: BoxDecoration(
                             color: Colors.white.withAlpha(18),
                             borderRadius: BorderRadius.circular(12),
@@ -945,8 +980,8 @@ class _QuizResultsViewScreenState extends State<QuizResultsViewScreen>
                   color: const Color(0xFF6C63FF),
                   backgroundColor: const Color(0xFF131929),
                   child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(
-                        20, 4, 20, 30),
+                    padding:
+                    const EdgeInsets.fromLTRB(20, 4, 20, 30),
                     itemCount: _results.length,
                     itemBuilder: (context, index) {
                       return AnimatedBuilder(
@@ -962,14 +997,11 @@ class _QuizResultsViewScreenState extends State<QuizResultsViewScreen>
                           return Opacity(
                               opacity: c,
                               child: Transform.translate(
-                                  offset:
-                                  Offset(0, 30 * (1 - c)),
+                                  offset: Offset(0, 30 * (1 - c)),
                                   child: child));
                         },
                         child: _buildResultCard(
-                            _results[index],
-                            index,
-                            totalMarks),
+                            _results[index], index, totalMarks),
                       );
                     },
                   ),
@@ -1068,8 +1100,7 @@ class _QuizResultsViewScreenState extends State<QuizResultsViewScreen>
                       fontWeight: FontWeight.w700))),
           const SizedBox(width: 12),
           Container(
-              width: 42,
-              height: 42,
+              width: 42, height: 42,
               decoration: BoxDecoration(
                   gradient: LinearGradient(
                       colors: [scoreColor, scoreColor.withAlpha(153)]),
@@ -1082,18 +1113,19 @@ class _QuizResultsViewScreenState extends State<QuizResultsViewScreen>
                           fontSize: 14)))),
           const SizedBox(width: 14),
           Expanded(
-            child:
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(name,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700)),
-              const SizedBox(height: 2),
-              Text(username,
-                  style: TextStyle(
-                      color: Colors.white.withAlpha(102), fontSize: 12)),
-            ]),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(username,
+                      style: TextStyle(
+                          color: Colors.white.withAlpha(102), fontSize: 12)),
+                ]),
           ),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Row(children: [
@@ -1110,8 +1142,7 @@ class _QuizResultsViewScreenState extends State<QuizResultsViewScreen>
             ]),
             const SizedBox(height: 2),
             Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                   color: scoreColor.withAlpha(38),
                   borderRadius: BorderRadius.circular(8)),
@@ -1127,8 +1158,7 @@ class _QuizResultsViewScreenState extends State<QuizResultsViewScreen>
           const SizedBox(height: 10),
           Container(
             width: double.infinity,
-            padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
                 color: const Color(0xFFFF6584).withAlpha(26),
                 borderRadius: BorderRadius.circular(10),
@@ -1153,6 +1183,9 @@ class _QuizResultsViewScreenState extends State<QuizResultsViewScreen>
   }
 }
 
+// ============================================================
+// QUIZ EDITOR SCREEN — with time per question + validation
+// ============================================================
 class QuizEditorScreen extends StatefulWidget {
   final Map<String, dynamic> quiz;
   const QuizEditorScreen({super.key, required this.quiz});
@@ -1170,6 +1203,7 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
   final _optionCController = TextEditingController();
   final _optionDController = TextEditingController();
   final _pointsController = TextEditingController();
+  final _timeController = TextEditingController(); // ✅ Time per question
   String _correctAnswer = 'A';
   List<Map<String, dynamic>> _questions = [];
   bool _isLoading = true;
@@ -1182,8 +1216,8 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
     super.initState();
     _entryController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 700));
-    _entryAnim = CurvedAnimation(
-        parent: _entryController, curve: Curves.easeOutCubic);
+    _entryAnim =
+        CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic);
     _entryController.forward();
     _loadQuiz();
   }
@@ -1206,6 +1240,7 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
             'optionD': q['optD'] ?? '',
             'correct': q['correctOpt'] ?? 'A',
             'points': '${q['marks'] ?? 1}',
+            'timeSecs': '${q['timeSecs'] ?? 30}', // ✅ Time
           })
               .toList();
           _isLoading = false;
@@ -1220,12 +1255,7 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
 
   void _addQuestion() {
     if (_questionController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: const Color(0xFFFF6584),
-          content: const Text('Write a question first!'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12))));
+      _showSnack('Write a question first!', const Color(0xFFFF6584));
       return;
     }
     HapticFeedback.lightImpact();
@@ -1240,6 +1270,9 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
         'points': _pointsController.text.trim().isEmpty
             ? '1'
             : _pointsController.text.trim(),
+        'timeSecs': _timeController.text.trim().isEmpty // ✅
+            ? '30'
+            : _timeController.text.trim(),
       });
       _questionController.clear();
       _optionAController.clear();
@@ -1247,29 +1280,37 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
       _optionCController.clear();
       _optionDController.clear();
       _pointsController.clear();
+      _timeController.clear();
       _correctAnswer = 'A';
     });
   }
 
+  // ✅ POINTS VALIDATION
+  bool _validatePoints() {
+    final totalMarks = int.tryParse(_marksController.text.trim()) ?? 0;
+    if (totalMarks == 0) return true; // skip validation if 0
+    final sumPoints = _questions.fold<int>(
+        0, (sum, q) => sum + (int.tryParse(q['points'] ?? '1') ?? 1));
+    if (sumPoints != totalMarks) {
+      _showSnack(
+          '⚠️ Total question points ($sumPoints) ≠ Total marks ($totalMarks)!\nPlease adjust points.',
+          const Color(0xFFFF6584));
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _saveQuiz() async {
     if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: const Color(0xFFFFB347),
-          content: const Text('Title required!'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12))));
+      _showSnack('Title required!', const Color(0xFFFFB347));
       return;
     }
     if (_questions.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: const Color(0xFFFF6584),
-          content: const Text('Add at least one question!'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12))));
+      _showSnack('Add at least one question!', const Color(0xFFFF6584));
       return;
     }
+    // ✅ Validate points
+    if (!_validatePoints()) return;
     if (_isSaving) return;
     setState(() => _isSaving = true);
     HapticFeedback.heavyImpact();
@@ -1282,6 +1323,7 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
       'optD': q['optionD'],
       'correctOpt': q['correct'],
       'marks': int.tryParse(q['points'] ?? '1') ?? 1,
+      'timeSecs': int.tryParse(q['timeSecs'] ?? '30') ?? 30, // ✅
     })
         .toList();
     final res = await QuizApi.updateQuiz(
@@ -1291,21 +1333,20 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
         questions: aq);
     if (mounted) setState(() => _isSaving = false);
     if (res['success'] == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Quiz updated! ✅'),
-          backgroundColor: const Color(0xFF00D4AA),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12))));
+      _showSnack('Quiz updated! ✅', const Color(0xFF00D4AA));
       Navigator.pop(context);
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(res['message'] ?? 'Update failed'),
-          backgroundColor: const Color(0xFFFF6584),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12))));
+      _showSnack(res['message'] ?? 'Update failed', const Color(0xFFFF6584));
     }
+  }
+
+  void _showSnack(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
   }
 
   @override
@@ -1319,6 +1360,7 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
     _optionCController.dispose();
     _optionDController.dispose();
     _pointsController.dispose();
+    _timeController.dispose();
     super.dispose();
   }
 
@@ -1328,7 +1370,8 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
       return const Scaffold(
           backgroundColor: Color(0xFF0A0E1A),
           body: Center(
-              child: CircularProgressIndicator(color: Color(0xFF6C63FF))));
+              child:
+              CircularProgressIndicator(color: Color(0xFF6C63FF))));
     }
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E1A),
@@ -1370,14 +1413,12 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
         GestureDetector(
           onTap: () => Navigator.pop(context),
           child: Container(
-              width: 42,
-              height: 42,
+              width: 42, height: 42,
               decoration: BoxDecoration(
                   color: Colors.white.withAlpha(18),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.white.withAlpha(26))),
-              child:
-              const Icon(Icons.close, color: Colors.white, size: 18)),
+              child: const Icon(Icons.close, color: Colors.white, size: 18)),
         ),
         const SizedBox(width: 16),
         ShaderMask(
@@ -1402,19 +1443,43 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
       decoration: BoxDecoration(
           color: const Color(0xFF131929),
           borderRadius: BorderRadius.circular(20),
-          border:
-          Border.all(color: const Color(0xFF6C63FF).withAlpha(51))),
+          border: Border.all(color: const Color(0xFF6C63FF).withAlpha(51))),
       child: Column(children: [
         _glowTextField(_titleController, 'Quiz Title', Icons.title),
         const SizedBox(height: 12),
-        _glowTextField(
-            _marksController, 'Total Marks', Icons.star_outline,
+        _glowTextField(_marksController, 'Total Marks', Icons.star_outline,
             keyboardType: TextInputType.number),
+        const SizedBox(height: 8),
+        // ✅ Points hint
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+              color: const Color(0xFFFFB347).withAlpha(20),
+              borderRadius: BorderRadius.circular(10),
+              border:
+              Border.all(color: const Color(0xFFFFB347).withAlpha(51))),
+          child: Row(children: [
+            const Icon(Icons.info_outline,
+                color: Color(0xFFFFB347), size: 14),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                  'Sum of all question points must equal Total Marks',
+                  style: TextStyle(
+                      color: Colors.white.withAlpha(153),
+                      fontSize: 11)),
+            ),
+          ]),
+        ),
       ]),
     );
   }
 
   Widget _buildQuestionsCountBadge() {
+    final sumPoints = _questions.fold<int>(
+        0, (sum, q) => sum + (int.tryParse(q['points'] ?? '1') ?? 1));
+    final totalMarks = int.tryParse(_marksController.text.trim()) ?? 0;
+    final isValid = totalMarks == 0 || sumPoints == totalMarks;
     return Row(children: [
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -1437,6 +1502,35 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
                   fontSize: 13)),
         ]),
       ),
+      const SizedBox(width: 10),
+      // ✅ Live points tracker
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+            color: isValid
+                ? const Color(0xFF00D4AA).withAlpha(26)
+                : const Color(0xFFFF6584).withAlpha(26),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+                color: isValid
+                    ? const Color(0xFF00D4AA).withAlpha(77)
+                    : const Color(0xFFFF6584).withAlpha(77))),
+        child: Row(children: [
+          Icon(isValid ? Icons.check_circle_outline : Icons.warning_outlined,
+              color: isValid
+                  ? const Color(0xFF00D4AA)
+                  : const Color(0xFFFF6584),
+              size: 14),
+          const SizedBox(width: 6),
+          Text('Points: $sumPoints/$totalMarks',
+              style: TextStyle(
+                  color: isValid
+                      ? const Color(0xFF00D4AA)
+                      : const Color(0xFFFF6584),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13)),
+        ]),
+      ),
     ]);
   }
 
@@ -1446,8 +1540,7 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
       decoration: BoxDecoration(
           color: const Color(0xFF131929),
           borderRadius: BorderRadius.circular(20),
-          border:
-          Border.all(color: const Color(0xFFFFB347).withAlpha(77)),
+          border: Border.all(color: const Color(0xFFFFB347).withAlpha(77)),
           boxShadow: [
             BoxShadow(
                 color: const Color(0xFFFFB347).withAlpha(20),
@@ -1487,9 +1580,20 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
                   .map((opt) => _answerRadio(opt))
                   .toList()),
           const SizedBox(height: 16),
-          _glowTextField(
-              _pointsController, 'Points for this question', Icons.bolt,
-              keyboardType: TextInputType.number),
+          // ✅ Points + Time in a row
+          Row(children: [
+            Expanded(
+              child: _glowTextField(
+                  _pointsController, 'Points', Icons.bolt,
+                  keyboardType: TextInputType.number),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _glowTextField(
+                  _timeController, 'Time (sec)', Icons.timer_outlined,
+                  keyboardType: TextInputType.number),
+            ),
+          ]),
           const SizedBox(height: 16),
           GestureDetector(
             onTap: _addQuestion,
@@ -1516,8 +1620,7 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
                       style: TextStyle(
                           color: Colors.white,
                           fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.3)),
+                          fontWeight: FontWeight.w700)),
                 ],
               ),
             ),
@@ -1553,7 +1656,8 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
                 borderRadius: BorderRadius.circular(16)),
             alignment: Alignment.centerRight,
             padding: const EdgeInsets.only(right: 20),
-            child: const Icon(Icons.delete, color: Color(0xFFFF6584)),
+            child:
+            const Icon(Icons.delete, color: Color(0xFFFF6584)),
           ),
           child: Container(
             margin: const EdgeInsets.only(bottom: 10),
@@ -1562,42 +1666,45 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
                 color: const Color(0xFF131929),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.white.withAlpha(15))),
-            child:
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFFFFB347).withAlpha(38),
-                      borderRadius: BorderRadius.circular(8)),
-                  child: Text('Q${i + 1}',
-                      style: const TextStyle(
-                          color: Color(0xFFFFB347),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12)),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(q['question'],
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
-                ),
-              ]),
-              const SizedBox(height: 8),
-              Row(children: [
-                const Icon(Icons.check_circle,
-                    color: Color(0xFF00D4AA), size: 14),
-                const SizedBox(width: 4),
-                Text('Answer: ${q['correct']}  •  ${q['points']} pts',
-                    style: TextStyle(
-                        color: Colors.white.withAlpha(115), fontSize: 12)),
-              ]),
-            ]),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                          color: const Color(0xFFFFB347).withAlpha(38),
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Text('Q${i + 1}',
+                          style: const TextStyle(
+                              color: Color(0xFFFFB347),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(q['question'],
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    const Icon(Icons.check_circle,
+                        color: Color(0xFF00D4AA), size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                        'Ans: ${q['correct']}  •  ${q['points']} pts  •  ⏱ ${q['timeSecs']}s',
+                        style: TextStyle(
+                            color: Colors.white.withAlpha(115),
+                            fontSize: 12)),
+                  ]),
+                ]),
           ),
         );
       }),
@@ -1631,7 +1738,8 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
                   offset: const Offset(0, 6))
             ],
           ),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          child:
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             if (_isSaving)
               const SizedBox(
                   width: 20,
@@ -1653,8 +1761,9 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
     );
   }
 
-  Widget _glowTextField(TextEditingController controller, String hint,
-      IconData icon, {TextInputType keyboardType = TextInputType.text}) {
+  Widget _glowTextField(
+      TextEditingController controller, String hint, IconData icon,
+      {TextInputType keyboardType = TextInputType.text}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
@@ -1671,7 +1780,8 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
             style: const TextStyle(color: Colors.white, fontSize: 14),
             decoration: InputDecoration(
                 hintText: hint,
-                hintStyle: TextStyle(color: Colors.white.withAlpha(77)),
+                hintStyle:
+                TextStyle(color: Colors.white.withAlpha(77)),
                 border: InputBorder.none),
           ),
         ),
@@ -1679,7 +1789,8 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
     );
   }
 
-  Widget _optionField(String label, TextEditingController controller, Color color) {
+  Widget _optionField(
+      String label, TextEditingController controller, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Container(
@@ -1690,8 +1801,7 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
             border: Border.all(color: color.withAlpha(77))),
         child: Row(children: [
           Container(
-            width: 26,
-            height: 26,
+            width: 26, height: 26,
             alignment: Alignment.center,
             decoration: BoxDecoration(
                 color: color.withAlpha(77),
@@ -1738,9 +1848,11 @@ class _QuizEditorScreenState extends State<QuizEditorScreen>
   }
 }
 
+// ============================================================
+// QUIZ CREATOR SCREEN — with time per question + validation
+// ============================================================
 class QuizCreatorScreen extends StatefulWidget {
   const QuizCreatorScreen({super.key});
-
   @override
   State<QuizCreatorScreen> createState() => _QuizCreatorScreenState();
 }
@@ -1755,6 +1867,7 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
   final _optionCController = TextEditingController();
   final _optionDController = TextEditingController();
   final _pointsController = TextEditingController();
+  final _timeController = TextEditingController(); // ✅ Time
   String _correctAnswer = 'A';
   List<Map<String, dynamic>> _questions = [];
   bool _isSaving = false;
@@ -1766,19 +1879,14 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
     super.initState();
     _entryController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 700));
-    _entryAnim = CurvedAnimation(
-        parent: _entryController, curve: Curves.easeOutCubic);
+    _entryAnim =
+        CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic);
     _entryController.forward();
   }
 
   void _addQuestion() {
     if (_questionController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: const Color(0xFFFF6584),
-          content: const Text('Write a question first!'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12))));
+      _showSnack('Write a question first!', const Color(0xFFFF6584));
       return;
     }
     HapticFeedback.lightImpact();
@@ -1793,6 +1901,9 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
         'points': _pointsController.text.trim().isEmpty
             ? '1'
             : _pointsController.text.trim(),
+        'timeSecs': _timeController.text.trim().isEmpty // ✅
+            ? '30'
+            : _timeController.text.trim(),
       });
       _questionController.clear();
       _optionAController.clear();
@@ -1800,29 +1911,37 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
       _optionCController.clear();
       _optionDController.clear();
       _pointsController.clear();
+      _timeController.clear();
       _correctAnswer = 'A';
     });
   }
 
+  // ✅ POINTS VALIDATION
+  bool _validatePoints() {
+    final totalMarks = int.tryParse(_marksController.text.trim()) ?? 0;
+    if (totalMarks == 0) return true;
+    final sumPoints = _questions.fold<int>(
+        0, (sum, q) => sum + (int.tryParse(q['points'] ?? '1') ?? 1));
+    if (sumPoints != totalMarks) {
+      _showSnack(
+          '⚠️ Total question points ($sumPoints) ≠ Total marks ($totalMarks)!\nPlease adjust points.',
+          const Color(0xFFFF6584));
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _saveQuiz() async {
     if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: const Color(0xFFFFB347),
-          content: const Text('Title required!'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12))));
+      _showSnack('Title required!', const Color(0xFFFFB347));
       return;
     }
     if (_questions.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: const Color(0xFFFF6584),
-          content: const Text('Add at least one question!'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12))));
+      _showSnack('Add at least one question!', const Color(0xFFFF6584));
       return;
     }
+    // ✅ Validate points
+    if (!_validatePoints()) return;
     if (_isSaving) return;
     setState(() => _isSaving = true);
     HapticFeedback.heavyImpact();
@@ -1836,6 +1955,7 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
       'optD': q['optionD'],
       'correctOpt': q['correct'],
       'marks': int.tryParse(q['points'] ?? '1') ?? 1,
+      'timeSecs': int.tryParse(q['timeSecs'] ?? '30') ?? 30, // ✅
     })
         .toList();
 
@@ -1847,21 +1967,20 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
     if (mounted) setState(() => _isSaving = false);
 
     if (res['success'] == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Quiz created! ✅'),
-          backgroundColor: const Color(0xFF00D4AA),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12))));
+      _showSnack('Quiz created! ✅', const Color(0xFF00D4AA));
       Navigator.pop(context);
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(res['message'] ?? 'Create failed'),
-          backgroundColor: const Color(0xFFFF6584),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12))));
+      _showSnack(res['message'] ?? 'Create failed', const Color(0xFFFF6584));
     }
+  }
+
+  void _showSnack(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
   }
 
   @override
@@ -1875,6 +1994,7 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
     _optionCController.dispose();
     _optionDController.dispose();
     _pointsController.dispose();
+    _timeController.dispose();
     super.dispose();
   }
 
@@ -1920,14 +2040,12 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
         GestureDetector(
           onTap: () => Navigator.pop(context),
           child: Container(
-              width: 42,
-              height: 42,
+              width: 42, height: 42,
               decoration: BoxDecoration(
                   color: Colors.white.withAlpha(18),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.white.withAlpha(26))),
-              child:
-              const Icon(Icons.close, color: Colors.white, size: 18)),
+              child: const Icon(Icons.close, color: Colors.white, size: 18)),
         ),
         const SizedBox(width: 16),
         ShaderMask(
@@ -1952,19 +2070,42 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
       decoration: BoxDecoration(
           color: const Color(0xFF131929),
           borderRadius: BorderRadius.circular(20),
-          border:
-          Border.all(color: const Color(0xFF6C63FF).withAlpha(51))),
+          border: Border.all(color: const Color(0xFF6C63FF).withAlpha(51))),
       child: Column(children: [
         _glowTextField(_titleController, 'Quiz Title', Icons.title),
         const SizedBox(height: 12),
-        _glowTextField(
-            _marksController, 'Total Marks', Icons.star_outline,
+        _glowTextField(_marksController, 'Total Marks', Icons.star_outline,
             keyboardType: TextInputType.number),
+        const SizedBox(height: 8),
+        // ✅ Points hint
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+              color: const Color(0xFFFFB347).withAlpha(20),
+              borderRadius: BorderRadius.circular(10),
+              border:
+              Border.all(color: const Color(0xFFFFB347).withAlpha(51))),
+          child: Row(children: [
+            const Icon(Icons.info_outline,
+                color: Color(0xFFFFB347), size: 14),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                  'Sum of all question points must equal Total Marks',
+                  style: TextStyle(
+                      color: Colors.white.withAlpha(153), fontSize: 11)),
+            ),
+          ]),
+        ),
       ]),
     );
   }
 
   Widget _buildQuestionsCountBadge() {
+    final sumPoints = _questions.fold<int>(
+        0, (sum, q) => sum + (int.tryParse(q['points'] ?? '1') ?? 1));
+    final totalMarks = int.tryParse(_marksController.text.trim()) ?? 0;
+    final isValid = totalMarks == 0 || sumPoints == totalMarks;
     return Row(children: [
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -1987,6 +2128,35 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
                   fontSize: 13)),
         ]),
       ),
+      const SizedBox(width: 10),
+      // ✅ Live points tracker
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+            color: isValid
+                ? const Color(0xFF00D4AA).withAlpha(26)
+                : const Color(0xFFFF6584).withAlpha(26),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+                color: isValid
+                    ? const Color(0xFF00D4AA).withAlpha(77)
+                    : const Color(0xFFFF6584).withAlpha(77))),
+        child: Row(children: [
+          Icon(isValid ? Icons.check_circle_outline : Icons.warning_outlined,
+              color: isValid
+                  ? const Color(0xFF00D4AA)
+                  : const Color(0xFFFF6584),
+              size: 14),
+          const SizedBox(width: 6),
+          Text('Points: $sumPoints/$totalMarks',
+              style: TextStyle(
+                  color: isValid
+                      ? const Color(0xFF00D4AA)
+                      : const Color(0xFFFF6584),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13)),
+        ]),
+      ),
     ]);
   }
 
@@ -1996,8 +2166,7 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
       decoration: BoxDecoration(
           color: const Color(0xFF131929),
           borderRadius: BorderRadius.circular(20),
-          border:
-          Border.all(color: const Color(0xFF6C63FF).withAlpha(77)),
+          border: Border.all(color: const Color(0xFF6C63FF).withAlpha(77)),
           boxShadow: [
             BoxShadow(
                 color: const Color(0xFF6C63FF).withAlpha(20),
@@ -2037,9 +2206,20 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
                   .map((opt) => _answerRadio(opt))
                   .toList()),
           const SizedBox(height: 16),
-          _glowTextField(
-              _pointsController, 'Points for this question', Icons.bolt,
-              keyboardType: TextInputType.number),
+          // ✅ Points + Time in a row
+          Row(children: [
+            Expanded(
+              child: _glowTextField(
+                  _pointsController, 'Points', Icons.bolt,
+                  keyboardType: TextInputType.number),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _glowTextField(
+                  _timeController, 'Time (sec)', Icons.timer_outlined,
+                  keyboardType: TextInputType.number),
+            ),
+          ]),
           const SizedBox(height: 16),
           GestureDetector(
             onTap: _addQuestion,
@@ -2103,7 +2283,8 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
                 borderRadius: BorderRadius.circular(16)),
             alignment: Alignment.centerRight,
             padding: const EdgeInsets.only(right: 20),
-            child: const Icon(Icons.delete, color: Color(0xFFFF6584)),
+            child:
+            const Icon(Icons.delete, color: Color(0xFFFF6584)),
           ),
           child: Container(
             margin: const EdgeInsets.only(bottom: 10),
@@ -2145,7 +2326,7 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
                         color: Color(0xFF00D4AA), size: 14),
                     const SizedBox(width: 4),
                     Text(
-                        'Answer: ${q['correct']}  •  ${q['points']} pts',
+                        'Ans: ${q['correct']}  •  ${q['points']} pts  •  ⏱ ${q['timeSecs']}s',
                         style: TextStyle(
                             color: Colors.white.withAlpha(115),
                             fontSize: 12)),
@@ -2208,8 +2389,8 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
     );
   }
 
-  Widget _glowTextField(TextEditingController controller, String hint,
-      IconData icon,
+  Widget _glowTextField(
+      TextEditingController controller, String hint, IconData icon,
       {TextInputType keyboardType = TextInputType.text}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -2248,8 +2429,7 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
             border: Border.all(color: color.withAlpha(77))),
         child: Row(children: [
           Container(
-            width: 26,
-            height: 26,
+            width: 26, height: 26,
             alignment: Alignment.center,
             decoration: BoxDecoration(
                 color: color.withAlpha(77),
@@ -2283,12 +2463,9 @@ class _QuizCreatorScreenState extends State<QuizCreatorScreen>
       },
       child: Container(
         margin: const EdgeInsets.only(right: 8),
-        padding:
-        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-            color: selected
-                ? const Color(0xFF6C63FF)
-                : Colors.white24,
+            color: selected ? const Color(0xFF6C63FF) : Colors.white24,
             borderRadius: BorderRadius.circular(12)),
         child: Text(opt,
             style: TextStyle(

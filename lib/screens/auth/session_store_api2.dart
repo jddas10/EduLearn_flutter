@@ -3,8 +3,9 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
-const String kBaseUrl = 'https://edulearn-backend-5gxv.onrender.com';
+const String kBaseUrl = 'https://plastics-venice-potter-abu.trycloudflare.com';
 const Duration kTimeout = Duration(seconds: 20);
 
 class SessionStore {
@@ -13,6 +14,7 @@ class SessionStore {
   static const _name     = 'name';
   static const _userId   = 'user_id';
   static const _deviceId = 'deviceId';
+  static const _fcmToken = 'fcm_token';
 
   static Future<void> save({
     required String token,
@@ -25,6 +27,66 @@ class SessionStore {
     await p.setString(_role,   role);
     await p.setString(_name,   name);
     await p.setInt(_userId,    userId);
+
+    // FCM token save karo aur backend ko bhejo
+    await _saveFcmToken(userId, token);
+  }
+
+  // FCM token save + backend sync
+  static Future<void> _saveFcmToken(int userId, String authToken) async {
+    try {
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken == null) return;
+
+      final p = await SharedPreferences.getInstance();
+      final oldToken = p.getString(_fcmToken);
+
+      // Sirf tab update karo jab token change ho
+      if (oldToken != fcmToken) {
+        await p.setString(_fcmToken, fcmToken);
+        // Backend ko FCM token bhejo
+        await http.post(
+          Uri.parse('$kBaseUrl/api/fcm/token'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $authToken',
+          },
+          body: jsonEncode({
+            'userId': userId,
+            'fcmToken': fcmToken,
+            'platform': Platform.isAndroid ? 'android' : 'ios',
+          }),
+        ).timeout(kTimeout);
+      }
+    } catch (_) {
+      // FCM token save fail ho toh app crash na kare
+    }
+  }
+
+  // FCM token refresh listener — app mein call karo
+  static void listenFcmTokenRefresh() {
+    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+      final p = await SharedPreferences.getInstance();
+      final authToken = p.getString(_token);
+      final userId = p.getInt(_userId);
+      if (authToken == null || userId == null) return;
+
+      await p.setString(_fcmToken, newToken);
+      try {
+        await http.post(
+          Uri.parse('$kBaseUrl/api/fcm/token'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $authToken',
+          },
+          body: jsonEncode({
+            'userId': userId,
+            'fcmToken': newToken,
+            'platform': Platform.isAndroid ? 'android' : 'ios',
+          }),
+        ).timeout(kTimeout);
+      } catch (_) {}
+    });
   }
 
   static Future<String?> get token     async => (await SharedPreferences.getInstance()).getString(_token);
@@ -32,6 +94,7 @@ class SessionStore {
   static Future<String?> get name      async => (await SharedPreferences.getInstance()).getString(_name);
   static Future<int?>    get userId    async => (await SharedPreferences.getInstance()).getInt(_userId);
   static Future<String?> get deviceId  async => (await SharedPreferences.getInstance()).getString(_deviceId);
+  static Future<String?> get fcmToken  async => (await SharedPreferences.getInstance()).getString(_fcmToken);
   static Future<bool>    get isLoggedIn async => (await token) != null;
   static Future<void>    clear() async => (await SharedPreferences.getInstance()).clear();
 }
@@ -333,6 +396,8 @@ class MarksApi {
 class QuizApi {
   static Future<Map<String, dynamic>> getTeacherQuizzes() =>
       _Http.get('/api/quiz/teacher');
+  static Future<Map<String, dynamic>> notifyStudents(int quizId) =>
+      _Http.post('/api/quiz/$quizId/notify', {});
 
   static Future<Map<String, dynamic>> createQuiz({
     required String title,
