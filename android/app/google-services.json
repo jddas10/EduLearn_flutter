@@ -1,0 +1,118 @@
+{
+  "project_info": {
+    "project_number": "270955863018",
+    "project_id": "edulearn-8f249",
+    "storage_bucket": "edulearn-8f249.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270955863018:android:3a91a19cbadc6cfbd8b093",
+        "android_client_info": {
+          "package_name": "com.edulearn.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "270955863018-csm32ejm0b8cf3r89cstv57qq4koa2ro.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCalsF59zp7uk6dgkl22M6GTZIvPeq7MOw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "270955863018-csm32ejm0b8cf3r89cstv57qq4koa2ro.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "270955863018-p7ih2vpptni9tkqrhcf0mshes121v5ss.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.edulearn.app.edulearn"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270955863018:android:be2f560b1bfc39fed8b093",
+        "android_client_info": {
+          "package_name": "com.edulearn.app.edulearn"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "270955863018-csm32ejm0b8cf3r89cstv57qq4koa2ro.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCalsF59zp7uk6dgkl22M6GTZIvPeq7MOw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "270955863018-csm32ejm0b8cf3r89cstv57qq4koa2ro.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "270955863018-p7ih2vpptni9tkqrhcf0mshes121v5ss.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.edulearn.app.edulearn"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270955863018:android:9599fcd9e0cc324bd8b093",
+        "android_client_info": {
+          "package_name": "com.example.edulearn"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "270955863018-csm32ejm0b8cf3r89cstv57qq4koa2ro.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCalsF59zp7uk6dgkl22M6GTZIvPeq7MOw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "270955863018-csm32ejm0b8cf3r89cstv57qq4koa2ro.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "270955863018-p7ih2vpptni9tkqrhcf0mshes121v5ss.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.edulearn.app.edulearn"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
