@@ -3,8 +3,6 @@ import 'package:flutter/services.dart';
 import 'dart:math' as math;
 import '../auth/api_service.dart';
 
-// ─── MODELS ──────────────────────────────────────────────────────────────────
-
 class StudentMark {
   final int id;
   final String name;
@@ -44,7 +42,6 @@ class StudentMark {
     return const Color(0xFFFF6584);
   }
 
-  // initials from name
   String get initials => name
       .split(' ')
       .map((w) => w.isNotEmpty ? w[0] : '')
@@ -75,8 +72,6 @@ class SubjectInfo {
   });
 }
 
-// ─── COLOR / ICON HELPERS ─────────────────────────────────────────────────────
-
 const _kColors = [
   Color(0xFF6C63FF), Color(0xFF00D4AA), Color(0xFFFF6584),
   Color(0xFFFFB347), Color(0xFF00D4FF), Color(0xFFFF8C42),
@@ -90,10 +85,6 @@ Color _colorFromHex(String? hex, int index) {
   }
   return _kColors[index % _kColors.length];
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  MAIN SCREEN
-// ───────────────────────────���─────────────────────────────────────────────────
 
 class TeacherMarksScreen extends StatefulWidget {
   const TeacherMarksScreen({super.key});
@@ -137,8 +128,6 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
     _listCtrl.dispose();
     super.dispose();
   }
-
-  // ── API Calls ───────────────────────────────────────────────────────────────
 
   Future<void> _fetchSubjects() async {
     setState(() => _isLoadingSubjects = true);
@@ -232,7 +221,45 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
     }
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
+  Future<void> _confirmDeleteSubject(SubjectInfo subject) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF131929),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Subject?',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+        content: Text(
+          'Delete "${subject.name}"? All marks will be lost.',
+          style: const TextStyle(color: Colors.white60, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel',
+                style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete',
+                style: TextStyle(
+                    color: Color(0xFFFF6584), fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _deleteSubject(subject);
+  }
+
+  Future<void> _deleteSubject(SubjectInfo subject) async {
+    final res = await MarksApi.deleteSubject(subject.id);
+    if (res['success'] == true && mounted) {
+      setState(() => _subjects.removeWhere((s) => s.id == subject.id));
+      _showSnack('Subject deleted', const Color(0xFFFF6584));
+    } else if (mounted) {
+      _showSnack(res['message'] ?? 'Delete failed', const Color(0xFFFF6584));
+    }
+  }
 
   void _showSnack(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -269,8 +296,6 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
     return list;
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -287,8 +312,6 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
       ),
     );
   }
-
-  // ── Subject Grid ─────────────────────────────────────────────────────────────
 
   Widget _buildSubjectGrid() {
     return FadeTransition(
@@ -335,7 +358,6 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.5)),
                 const Spacer(),
-                // ── Create Subject Button ──
                 GestureDetector(
                   onTap: _showCreateSubjectSheet,
                   child: Container(
@@ -375,7 +397,7 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
               const EdgeInsets.fromLTRB(20, 0, 20, 30),
               gridDelegate:
               const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount:  2,
+                crossAxisCount:   2,
                 crossAxisSpacing: 14,
                 mainAxisSpacing:  14,
                 childAspectRatio: 1.05,
@@ -522,6 +544,24 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                     color: subject.color.withOpacity(0.08)),
               ),
             ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: GestureDetector(
+                onTap: () => _confirmDeleteSubject(subject),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF6584).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: const Color(0xFFFF6584).withOpacity(0.3)),
+                  ),
+                  child: const Icon(Icons.delete_outline,
+                      color: Color(0xFFFF6584), size: 14),
+                ),
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -588,8 +628,6 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
       ),
     );
   }
-
-  // ── Student List ─────────────────────────────────────────────────────────────
 
   Widget _buildStudentListView() {
     final subject  = _selectedSubject!;
@@ -898,8 +936,6 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
     );
   }
 
-  // ── Top Bar ──────────────────────────────────────────────────────────────────
-
   Widget _buildTopBar({required bool showBack}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -959,8 +995,6 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
       ),
     );
   }
-
-  // ── Edit Marks Sheet ─────────────────────────────────────────────────────────
 
   void _showEditMarksSheet(StudentMark student, SubjectInfo subject) {
     HapticFeedback.lightImpact();
@@ -1114,8 +1148,7 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                         }
                         setSheetState(() => isSaving = true);
                         Navigator.pop(ctx);
-                        await _saveMarks(
-                            student, newMark, subject);
+                        await _saveMarks(student, newMark, subject);
                       },
                       child: Container(
                         height: 50,
@@ -1167,13 +1200,11 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
     );
   }
 
-  // ── Create Subject Sheet ─────────────────────────────────────────────────────
-
   void _showCreateSubjectSheet() {
-    final nameCtrl   = TextEditingController();
-    final marksCtrl  = TextEditingController(text: '100');
-    String icon      = '📚';
-    bool   isSaving  = false;
+    final nameCtrl  = TextEditingController();
+    final marksCtrl = TextEditingController(text: '100');
+    String icon     = '📚';
+    bool   isSaving = false;
 
     final icons = ['📚', '📐', '🔬', '📖', '🌍', '💻', '✍️', '🎨', '🏃', '🎵'];
 
@@ -1214,14 +1245,11 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                           color: Colors.white)),
                 ),
                 const SizedBox(height: 20),
-                // Name field
                 _glowField(nameCtrl, 'Subject Name', Icons.subject),
                 const SizedBox(height: 12),
-                // Total marks
                 _glowField(marksCtrl, 'Total Marks', Icons.star_outline,
                     keyboardType: TextInputType.number),
                 const SizedBox(height: 16),
-                // Icon picker
                 Text('ICON',
                     style: TextStyle(
                         color: Colors.white.withOpacity(0.4),
@@ -1256,7 +1284,6 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                   }).toList(),
                 ),
                 const SizedBox(height: 24),
-                // Save button
                 GestureDetector(
                   onTap: isSaving
                       ? null
@@ -1281,8 +1308,7 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                       _fetchSubjects();
                     } else {
                       setSheet(() => isSaving = false);
-                      _showSnack(
-                          res['message'] ?? 'Failed',
+                      _showSnack(res['message'] ?? 'Failed',
                           const Color(0xFFFF6584));
                     }
                   },
@@ -1290,10 +1316,8 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                     width: double.infinity,
                     height: 52,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [
-                        Color(0xFFFFB347),
-                        Color(0xFFFF6584)
-                      ]),
+                      gradient: const LinearGradient(
+                          colors: [Color(0xFFFFB347), Color(0xFFFF6584)]),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Center(
@@ -1413,8 +1437,6 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
   }
 }
 
-// ─── Shimmer Card ─────────────────────────────────────────────────────────────
-
 class _ShimmerCard extends StatefulWidget {
   @override
   State<_ShimmerCard> createState() => _ShimmerCardState();
@@ -1429,8 +1451,7 @@ class _ShimmerCardState extends State<_ShimmerCard>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 1200))
+        vsync: this, duration: const Duration(milliseconds: 1200))
       ..repeat();
     _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
   }
@@ -1463,8 +1484,6 @@ class _ShimmerCardState extends State<_ShimmerCard>
     );
   }
 }
-
-// ─── Background Painter ───────────────────────────────────────────────────────
 
 class _BgPainter extends CustomPainter {
   @override

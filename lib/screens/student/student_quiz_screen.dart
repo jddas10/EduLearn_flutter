@@ -737,8 +737,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> with TickerProvider
     if (pct >= 0.9) { grade = 'A+'; gradeColor = const Color(0xFF00D4AA); emoji = '🏆'; }
     else if (pct >= 0.75) { grade = 'A'; gradeColor = const Color(0xFF6C63FF); emoji = '🌟'; }
     else if (pct >= 0.6) { grade = 'B'; gradeColor = const Color(0xFFFFB347); emoji = '👍'; }
-    else { grade = 'C'; gradeColor = const Color(0xFFFF6584); emoji = '💪'; }
-
+    else { grade = 'C'; gradeColor = const Color(0xFFFF6584); emoji = '📝'; }
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E1A),
       body: Stack(

@@ -22,12 +22,11 @@ class _TeacherRecordedScreenState extends State<TeacherRecordedScreen>
   late final AnimationController _bgCtl;
   final TextEditingController _searchCtl = TextEditingController();
 
-  bool   _showSearch   = false;
-  String _searchQuery  = '';
-  bool   _loading      = true;
+  bool   _showSearch  = false;
+  String _searchQuery = '';
+  bool   _loading     = true;
   String? _error;
 
-  // Real data from API
   List<Map<String, dynamic>> _lectures  = [];
   List<Map<String, dynamic>> _myClasses = [];
 
@@ -58,15 +57,12 @@ class _TeacherRecordedScreenState extends State<TeacherRecordedScreen>
         LectureApi.getLectures(),
         TeacherApi.getMyClasses(),
       ]);
-      final lectureRes = results[0];
-      final classRes   = results[1];
-
       if (!mounted) return;
-      if (lectureRes['success'] == true) {
-        _lectures = List<Map<String, dynamic>>.from(lectureRes['lectures'] ?? []);
+      if (results[0]['success'] == true) {
+        _lectures  = List<Map<String, dynamic>>.from(results[0]['lectures'] ?? []);
       }
-      if (classRes['success'] == true) {
-        _myClasses = List<Map<String, dynamic>>.from(classRes['classes'] ?? []);
+      if (results[1]['success'] == true) {
+        _myClasses = List<Map<String, dynamic>>.from(results[1]['classes'] ?? []);
       }
     } catch (e) {
       _error = 'Failed to load: $e';
@@ -78,8 +74,8 @@ class _TeacherRecordedScreenState extends State<TeacherRecordedScreen>
 
   List<Map<String, dynamic>> get _filtered => _lectures.where((l) {
     final q = _searchQuery.toLowerCase();
-    return (l['title']    ?? '').toString().toLowerCase().contains(q) ||
-        (l['subject']  ?? '').toString().toLowerCase().contains(q) ||
+    return (l['title']      ?? '').toString().toLowerCase().contains(q) ||
+        (l['subject']    ?? '').toString().toLowerCase().contains(q) ||
         (l['class_name'] ?? '').toString().toLowerCase().contains(q);
   }).toList();
 
@@ -93,6 +89,9 @@ class _TeacherRecordedScreenState extends State<TeacherRecordedScreen>
     String? pickedPath;
     String  pickedName    = 'No video selected';
     bool    dialogLoading = false;
+    // ✅ FIX: Upload progress tracking
+    double  uploadProgress = 0.0;   // 0.0 → 1.0
+    String  uploadStatus   = '';    // e.g. "12.4 MB / 38.0 MB"
 
     showDialog(
       context: context,
@@ -109,7 +108,7 @@ class _TeacherRecordedScreenState extends State<TeacherRecordedScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
+                // ── Header ──
                 Row(children: [
                   Container(
                     padding: const EdgeInsets.all(8),
@@ -125,39 +124,42 @@ class _TeacherRecordedScreenState extends State<TeacherRecordedScreen>
                 ]),
                 const SizedBox(height: 22),
 
-                // CLASS DROPDOWN — real data
+                // ── Class Dropdown ──
                 _FieldLabel('Class *'),
                 const SizedBox(height: 6),
                 if (_myClasses.isEmpty)
                   _WarningBox('No classes assigned. Contact admin.')
                 else
                   _ClassDropdown(
-                    classes:  _myClasses,
-                    value:    selectedClass,
+                    classes:   _myClasses,
+                    value:     selectedClass,
                     onChanged: (v) => setD(() => selectedClass = v),
-                    enabled:  !dialogLoading,
+                    enabled:   !dialogLoading,
                   ),
                 const SizedBox(height: 14),
 
-                // TITLE
+                // ── Title ──
                 _FieldLabel('Title *'),
                 const SizedBox(height: 6),
-                _DField(controller: titleCtl, hint: 'e.g. OS Chapter 3 - Scheduling', icon: Icons.title_rounded, enabled: !dialogLoading),
+                _DField(controller: titleCtl, hint: 'e.g. OS Chapter 3 - Scheduling',
+                    icon: Icons.title_rounded, enabled: !dialogLoading),
                 const SizedBox(height: 12),
 
-                // SUBJECT
+                // ── Subject ──
                 _FieldLabel('Subject'),
                 const SizedBox(height: 6),
-                _DField(controller: subjectCtl, hint: 'e.g. Operating Systems', icon: Icons.book_rounded, enabled: !dialogLoading),
+                _DField(controller: subjectCtl, hint: 'e.g. Operating Systems',
+                    icon: Icons.book_rounded, enabled: !dialogLoading),
                 const SizedBox(height: 12),
 
-                // CATEGORY
+                // ── Category ──
                 _FieldLabel('Category'),
                 const SizedBox(height: 6),
-                _DField(controller: categoryCtl, hint: 'e.g. Lecture / Tutorial', icon: Icons.label_rounded, enabled: !dialogLoading),
+                _DField(controller: categoryCtl, hint: 'e.g. Lecture / Tutorial',
+                    icon: Icons.label_rounded, enabled: !dialogLoading),
                 const SizedBox(height: 14),
 
-                // VIDEO FILE PICKER — real file picker
+                // ── Video File Picker ──
                 _FieldLabel('Video File *'),
                 const SizedBox(height: 6),
                 GestureDetector(
@@ -192,43 +194,82 @@ class _TeacherRecordedScreenState extends State<TeacherRecordedScreen>
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(pickedName, overflow: TextOverflow.ellipsis,
+                        child: Text(pickedName,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: pickedPath != null ? Colors.white70 : Colors.white38,
                               fontSize: 13,
                             )),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _accent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: _accent.withValues(alpha: 0.3)),
+                      if (!dialogLoading)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _accent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: _accent.withValues(alpha: 0.3)),
+                          ),
+                          child: const Text('Browse',
+                              style: TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
-                        child: const Text('Browse',
-                            style: TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w600)),
-                      ),
                     ]),
                   ),
                 ),
 
                 const SizedBox(height: 24),
 
-                // BUTTONS
-                if (dialogLoading)
-                  const Center(child: Column(children: [
-                    CircularProgressIndicator(color: _accent, strokeWidth: 2),
-                    SizedBox(height: 10),
-                    Text('Uploading video...', style: TextStyle(color: Colors.white54, fontSize: 13)),
-                  ]))
-                else
+                // ── ✅ FIX: Progress indicator (YouTube-style %) ──
+                if (dialogLoading) ...[
+                  // Percentage text
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Uploading...',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
+                      ),
+                      Text(
+                        '${(uploadProgress * 100).toInt()}%',
+                        style: const TextStyle(
+                          color: _accent,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Progress bar
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: uploadProgress,
+                      minHeight: 8,
+                      backgroundColor: Colors.white.withValues(alpha: 0.1),
+                      valueColor: const AlwaysStoppedAnimation<Color>(_accent),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // File size status e.g. "12.4 MB / 38.0 MB"
+                  if (uploadStatus.isNotEmpty)
+                    Center(
+                      child: Text(
+                        uploadStatus,
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                ] else ...[
+                  // ── Upload Button ──
                   Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Cancel', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.w600)),
+                      child: const Text('Cancel',
+                          style: TextStyle(color: Colors.white38, fontWeight: FontWeight.w600)),
                     ),
                     const SizedBox(width: 8),
-                    // UPLOAD BUTTON — calls real API
                     GestureDetector(
                       onTap: () async {
                         final title = titleCtl.text.trim();
@@ -241,27 +282,44 @@ class _TeacherRecordedScreenState extends State<TeacherRecordedScreen>
                         if (_myClasses.isNotEmpty && selectedClass == null) {
                           _showSnack('Please select a class', Colors.orange); return;
                         }
-                        setD(() => dialogLoading = true);
+                        setD(() {
+                          dialogLoading  = true;
+                          uploadProgress = 0.0;
+                          uploadStatus   = '';
+                        });
                         try {
+                          // ✅ FIX: onProgress callback — real % from Dio
                           final res = await LectureApi.uploadLecture(
                             videoFilePath: pickedPath!,
                             title:         title,
                             subject:       subjectCtl.text.trim(),
                             category:      categoryCtl.text.trim(),
                             classId:       selectedClass?['id'] as int?,
+                            onProgress:    (int sent, int total) {
+                              if (total <= 0) return;
+                              final pct  = sent / total;
+                              final sentMb  = (sent  / (1024 * 1024));
+                              final totalMb = (total / (1024 * 1024));
+                              setD(() {
+                                uploadProgress = pct;
+                                uploadStatus   =
+                                '${sentMb.toStringAsFixed(1)} MB / ${totalMb.toStringAsFixed(1)} MB';
+                              });
+                            },
                           );
                           if (res['success'] == true) {
                             if (ctx.mounted) Navigator.pop(ctx);
                             _showSnack('Lecture uploaded successfully!', const Color(0xFF00838F));
                             HapticFeedback.mediumImpact();
-                            await _loadAll(); // Refresh list from server
+                            await _loadAll();
                           } else {
                             _showSnack(res['message'] ?? 'Upload failed', Colors.red);
+                            if (ctx.mounted) setD(() => dialogLoading = false);
                           }
                         } catch (e) {
                           _showSnack('Error: $e', Colors.red);
+                          if (ctx.mounted) setD(() => dialogLoading = false);
                         }
-                        if (ctx.mounted) setD(() => dialogLoading = false);
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
@@ -269,10 +327,12 @@ class _TeacherRecordedScreenState extends State<TeacherRecordedScreen>
                           color: _accent, borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Text('Upload',
-                            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800, fontSize: 14)),
+                            style: TextStyle(
+                                color: Colors.black, fontWeight: FontWeight.w800, fontSize: 14)),
                       ),
                     ),
                   ]),
+                ],
               ],
             ),
           ),
@@ -281,7 +341,7 @@ class _TeacherRecordedScreenState extends State<TeacherRecordedScreen>
     );
   }
 
-  // ─── DELETE ────────────────────────────────────────────────────────────────
+  // ─── DELETE ──────────────────────────────────────────────────────���─────────
 
   Future<void> _deleteLecture(Map<String, dynamic> lecture) async {
     final confirmed = await showDialog<bool>(
@@ -309,7 +369,6 @@ class _TeacherRecordedScreenState extends State<TeacherRecordedScreen>
     );
     if (confirmed != true) return;
 
-    // Call real delete API
     final res = await LectureApi.deleteLecture(lecture['id'] as int);
     if (res['success'] == true) {
       setState(() => _lectures.removeWhere((l) => l['id'] == lecture['id']));
@@ -480,7 +539,7 @@ class _TeacherRecordedScreenState extends State<TeacherRecordedScreen>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LECTURE CARD — shows real data fields
+// LECTURE CARD
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _LectureCard extends StatelessWidget {
@@ -491,12 +550,10 @@ class _LectureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Parse real date from server
-    final rawDate  = lecture['createdAt']?.toString() ?? '';
-    final dt       = DateTime.tryParse(rawDate) ?? DateTime.now();
-    final dateStr  = '${dt.day}/${dt.month}/${dt.year}  '
+    final rawDate   = lecture['createdAt']?.toString() ?? '';
+    final dt        = DateTime.tryParse(rawDate) ?? DateTime.now();
+    final dateStr   = '${dt.day}/${dt.month}/${dt.year}  '
         '${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
-
     final className = lecture['class_name']?.toString() ?? '';
     final subject   = lecture['subject']?.toString()    ?? '';
     final category  = lecture['category']?.toString()   ?? '';
@@ -512,7 +569,6 @@ class _LectureCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(children: [
-            // Thumbnail icon
             Container(
               width: 52, height: 52,
               decoration: BoxDecoration(
@@ -523,35 +579,24 @@ class _LectureCard extends StatelessWidget {
               child: const Icon(Icons.play_arrow_rounded, color: Color(0xFFFF7043), size: 30),
             ),
             const SizedBox(width: 14),
-
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Title — real value
               Text(lecture['title']?.toString() ?? 'Untitled',
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
               const SizedBox(height: 5),
-
-              // Class + Subject + Category chips — real values
               Wrap(spacing: 5, runSpacing: 4, children: [
-                if (className.isNotEmpty)
-                  _Chip(label: className, color: const Color(0xFF6C63FF)),
-                if (subject.isNotEmpty)
-                  _Chip(label: subject, color: const Color(0xFF00E5FF)),
-                if (category.isNotEmpty)
-                  _Chip(label: category, color: Colors.white38),
+                if (className.isNotEmpty) _Chip(label: className, color: const Color(0xFF6C63FF)),
+                if (subject.isNotEmpty)   _Chip(label: subject,   color: const Color(0xFF00E5FF)),
+                if (category.isNotEmpty)  _Chip(label: category,  color: Colors.white38),
               ]),
               const SizedBox(height: 5),
-
-              // Date — real value from server
               Row(children: [
                 const Icon(Icons.access_time_rounded, size: 11, color: Colors.white30),
                 const SizedBox(width: 4),
                 Text(dateStr, style: const TextStyle(color: Colors.white30, fontSize: 11)),
               ]),
             ])),
-
             const SizedBox(width: 8),
-            // Delete button — calls real API
             IconButton(
               onPressed: onDelete,
               icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
@@ -565,7 +610,7 @@ class _LectureCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// VIDEO PLAYER SCREEN — real Chewie player
+// VIDEO PLAYER SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _VideoPlayerScreen extends StatefulWidget {
@@ -637,7 +682,6 @@ class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
       ),
       body: Column(children: [
-        // Real video player
         Container(
           width: double.infinity, height: 240, color: Colors.black,
           child: _error
@@ -648,30 +692,20 @@ class _VideoPlayerScreenState extends State<_VideoPlayerScreen> {
           ]))
               : !_initialized
               ? const Center(child: CircularProgressIndicator(color: Color(0xFF00E5FF), strokeWidth: 2))
-              : Chewie(controller: _cc!), // Real Chewie player
+              : Chewie(controller: _cc!),
         ),
-
-        // Info panel
         Expanded(child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // Real chips
             Wrap(spacing: 8, runSpacing: 6, children: [
-              if (className.isNotEmpty)
-                _Chip(label: '🏫 $className', color: const Color(0xFF6C63FF)),
-              if (subject.isNotEmpty)
-                _Chip(label: subject, color: const Color(0xFF00E5FF)),
-              if (category.isNotEmpty)
-                _Chip(label: category, color: Colors.white54),
+              if (className.isNotEmpty) _Chip(label: '🏫 $className', color: const Color(0xFF6C63FF)),
+              if (subject.isNotEmpty)   _Chip(label: subject,          color: const Color(0xFF00E5FF)),
+              if (category.isNotEmpty)  _Chip(label: category,         color: Colors.white54),
             ]),
             const SizedBox(height: 14),
-
-            // Real title
             Text(title, style: const TextStyle(color: Colors.white, fontSize: 20,
                 fontWeight: FontWeight.w900, letterSpacing: -0.3, height: 1.3)),
             const SizedBox(height: 10),
-
-            // Real date
             Row(children: [
               const Icon(Icons.calendar_today_outlined, color: Colors.white38, size: 14),
               const SizedBox(width: 5),
@@ -720,7 +754,8 @@ class _ClassDropdown extends StatelessWidget {
   final Map<String, dynamic>? value;
   final ValueChanged<Map<String, dynamic>?> onChanged;
   final bool enabled;
-  const _ClassDropdown({required this.classes, required this.value, required this.onChanged, required this.enabled});
+  const _ClassDropdown({required this.classes, required this.value,
+    required this.onChanged, required this.enabled});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -744,7 +779,8 @@ class _ClassDropdown extends StatelessWidget {
             Text(cls['icon']?.toString() ?? '📚', style: const TextStyle(fontSize: 16)),
             const SizedBox(width: 8),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text(cls['name']?.toString() ?? '', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+              Text(cls['name']?.toString() ?? '',
+                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
               Text('${cls['subject'] ?? ''} • ${cls['student_count'] ?? 0} students',
                   style: const TextStyle(color: Colors.white38, fontSize: 10)),
             ])),
@@ -781,10 +817,14 @@ class _DField extends StatelessWidget {
         prefixIcon: Icon(icon, color: Colors.white38, size: 18),
         filled: true, fillColor: Colors.white.withValues(alpha: 0.05),
         contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        border:        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: accent.withValues(alpha: 0.5), width: 1.5)),
-        disabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.04))),
+        border:        OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: accent.withValues(alpha: 0.5), width: 1.5)),
+        disabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.04))),
       ),
     );
   }
@@ -822,7 +862,8 @@ class _BgPainter extends CustomPainter {
       final path = Path();
       for (int s = 0; s <= 100; s++) {
         final x  = (size.width/100)*s;
-        final yy = y + 14.0*sin((x/size.width)*pi*2.2 + i*0.3 + ease*0.4) + 6.0*sin((x/size.width)*pi*4.4 + i*0.15);
+        final yy = y + 14.0*sin((x/size.width)*pi*2.2 + i*0.3 + ease*0.4)
+            +  6.0*sin((x/size.width)*pi*4.4 + i*0.15);
         s==0 ? path.moveTo(x,yy) : path.lineTo(x,yy);
       }
       canvas.drawPath(path, p);

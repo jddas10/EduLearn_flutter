@@ -87,7 +87,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen>
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
         content: Text(
           fromLifecycle
-              ? 'App background ja raha hai. Active attendance session close karna chahte hain?'
+              ? 'App is going to background. Close the active attendance session?'
               : 'Are you sure you want to close this session?',
           style: const TextStyle(color: Colors.white60, fontSize: 14),
         ),

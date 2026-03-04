@@ -327,15 +327,12 @@ class LectureApi {
 }
 
 class MarksApi {
-
   static Future<Map<String, dynamic>> getMyMarks() =>
       _Http.get('/marks/student');
 
-  // Teacher: subjects list
   static Future<Map<String, dynamic>> getSubjects() =>
       _Http.get('/subjects');
 
-  // Teacher: subject create
   static Future<Map<String, dynamic>> createSubject({
     required String name,
     String icon       = '📚',
@@ -349,11 +346,12 @@ class MarksApi {
         if (classId != null) 'classId': classId,
       });
 
-  // Teacher: ek subject ke students + unke marks
+  static Future<Map<String, dynamic>> deleteSubject(int subjectId) =>
+      _Http.delete('/subjects/$subjectId');
+
   static Future<Map<String, dynamic>> getStudentsWithMarks(int subjectId) =>
       _Http.get('/marks/students', query: {'subjectId': subjectId.toString()});
 
-  // Teacher: ek student ka mark update
   static Future<Map<String, dynamic>> updateMark({
     required int    studentId,
     required int    subjectId,
@@ -431,19 +429,16 @@ class QuizApi {
         'cheated': cheated,
       });
 }
+
 class HomeworkApi {
-  // ── Teacher ────────────────────────────────────────────────────────────────
-
-
   static Future<Map<String, dynamic>> getTeacherHomeworks() =>
       _Http.get('/homework/teacher');
 
-  // Homework create (with optional file attachments)
   static Future<Map<String, dynamic>> createHomework({
     required int    classId,
     required String title,
     required String description,
-    required String dueDate, // 'YYYY-MM-DD HH:mm:ss'
+    required String dueDate,
     List<String>    filePaths = const [],
     void Function(int sent, int total)? onProgress,
   }) async {
@@ -471,20 +466,15 @@ class HomeworkApi {
     }
   }
 
-  // Ek homework ke submissions (submitted + pending)
   static Future<Map<String, dynamic>> getSubmissions(int homeworkId) =>
       _Http.get('/homework/$homeworkId/submissions');
 
-  // Homework delete
   static Future<Map<String, dynamic>> deleteHomework(int homeworkId) =>
       _Http.delete('/homework/$homeworkId');
-
-  // ── Student ────────────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getStudentHomeworks() =>
       _Http.get('/homework/student');
 
-  // Student homework submit (with optional file)
   static Future<Map<String, dynamic>> submitHomework({
     required int    homeworkId,
     required String note,

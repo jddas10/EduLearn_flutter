@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
 import '../auth/api_service.dart';
+import 'package:file_picker/file_picker.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MODELS
@@ -1410,23 +1411,19 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
     super.dispose();
   }
 
-  void _pickFile() {
-    // TODO: Replace with actual FilePicker
-    // FilePickerResult? result = await FilePicker.platform.pickFiles(
-    //   type: FileType.custom,
-    //   allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'png'],
-    // );
-    // if (result != null && result.files.single.path != null) {
-    //   setState(() {
-    //     _attachmentPaths.add(result.files.single.path!);
-    //     _attachmentNames.add(result.files.single.name);
-    //   });
-    // }
+  void _pickFile() async {
     HapticFeedback.lightImpact();
-    setState(() {
-      _attachmentPaths.add('/mock/document.pdf');
-      _attachmentNames.add('document.pdf');
-    });
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'png'],
+      allowMultiple: false,
+    );
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        _attachmentPaths.add(result.files.single.path!);
+        _attachmentNames.add(result.files.single.name);
+      });
+    }
   }
 
   Future<void> _send() async {
