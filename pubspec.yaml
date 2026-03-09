@@ -31,7 +31,7 @@ dependencies:
   # Media / Scanner / Location
   video_player: ^2.9.1
   chewie: ^1.7.5
-  mobile_scanner: ^5.2.3
+  mobile_scanner: ^6.0.0
   geolocator: ^12.0.0
 
   # QR Generation
