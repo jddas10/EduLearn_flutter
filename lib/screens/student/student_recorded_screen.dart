@@ -700,7 +700,7 @@ class _StudentVideoPlayerScreenState extends State<StudentVideoPlayerScreen>
                 ? const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
               SizedBox(height: 8),
-              Text('Video load nahi hua', style: TextStyle(color: Colors.white38)),
+              Text('Video loading failed !', style: TextStyle(color: Colors.white38)),
             ]))
                 : !_initialized
                 ? const Center(child: CircularProgressIndicator(color: _accent, strokeWidth: 2))

@@ -1,8 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../app/routes.dart';
 import '../../screens/auth/api_service.dart';
+
 class LoginScreen extends StatefulWidget {
   final String role;
   const LoginScreen({super.key, required this.role});
@@ -65,8 +67,19 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
+  Future<void> _saveFcmToken() async {
+    try {
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null) {
+        await NotificationApi.saveFcmToken(fcmToken);
+      }
+      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+        NotificationApi.saveFcmToken(newToken);
+      });
+    } catch (_) {}
+  }
+
   void _login() async {
-    // button animation
     await _btnCtl.forward();
     _btnCtl.reset();
 
@@ -81,7 +94,6 @@ class _LoginScreenState extends State<LoginScreen>
       return;
     }
 
-    // Optional: loading dialog
     if (mounted) {
       showDialog(
         context: context,
@@ -100,7 +112,8 @@ class _LoginScreenState extends State<LoginScreen>
     Navigator.of(context).pop();
 
     if (res['success'] == true) {
-      // login ok -> go dashboard
+      await _saveFcmToken();
+      if (!mounted) return;
       if (widget.role == 'teacher') {
         context.go(AppRoutes.teacherDash);
       } else {
@@ -121,10 +134,9 @@ class _LoginScreenState extends State<LoginScreen>
 
     return Scaffold(
       backgroundColor: bg,
-      resizeToAvoidBottomInset: false, // we handle it manually
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Orb background
           AnimatedBuilder(
             animation: _orbCtl,
             builder: (context, _) => CustomPaint(
@@ -132,8 +144,6 @@ class _LoginScreenState extends State<LoginScreen>
               painter: _OrbPainter(progress: _orbCtl.value),
             ),
           ),
-
-          // Scrollable content — shifts up when keyboard opens
           AnimatedPadding(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
@@ -148,8 +158,6 @@ class _LoginScreenState extends State<LoginScreen>
                     child: Column(
                       children: [
                         const SizedBox(height: 160),
-
-                        // EduLearn title
                         Text(
                           'EduLearn',
                           style: TextStyle(
@@ -168,15 +176,11 @@ class _LoginScreenState extends State<LoginScreen>
                             letterSpacing: 0.3,
                           ),
                         ),
-
                         const SizedBox(height: 32),
-
-                        // Glass card
                         _GlassCard(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Role chip
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 5),
@@ -198,10 +202,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                                 ),
                               ),
-
                               const SizedBox(height: 20),
-
-                              // Username
                               Focus(
                                 onFocusChange: (v) =>
                                     setState(() => _userFocused = v),
@@ -231,10 +232,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                                 ),
                               ),
-
                               const SizedBox(height: 14),
-
-                              // Password
                               Focus(
                                 onFocusChange: (v) =>
                                     setState(() => _passFocused = v),
@@ -276,10 +274,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                                 ),
                               ),
-
                               const SizedBox(height: 24),
-
-                              // Animated LOGIN button
                               AnimatedBuilder(
                                 animation: _btnCtl,
                                 builder: (context, _) {
@@ -330,7 +325,6 @@ class _LoginScreenState extends State<LoginScreen>
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 28),
                       ],
                     ),

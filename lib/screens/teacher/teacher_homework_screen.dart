@@ -4,10 +4,6 @@ import 'dart:math' as math;
 import '../auth/api_service.dart';
 import 'package:file_picker/file_picker.dart';
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// MODELS
-// ═══════════════════════════════════════════════════════════════════════════════
-
 class HomeworkItem {
   final int    id;
   final String title;
@@ -66,8 +62,6 @@ class TeacherClassInfo {
   });
 }
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
-
 const _kColors = [
   Color(0xFF6C63FF), Color(0xFF00D4AA), Color(0xFFFF6584),
   Color(0xFFFFB347), Color(0xFF00D4FF), Color(0xFFFF8C42),
@@ -86,10 +80,6 @@ String _fmtDate(DateTime dt) {
     'Jul','Aug','Sep','Oct','Nov','Dec'];
   return '${dt.day} ${m[dt.month-1]}, ${dt.year}';
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// MAIN SCREEN
-// ═══════════════════════════════════════════════════════════════════════════════
 
 class TeacherHomeworkScreen extends StatefulWidget {
   const TeacherHomeworkScreen({super.key});
@@ -127,9 +117,6 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen>
         CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOutCubic);
 
     _headerCtrl.forward();
-    Future.delayed(
-        const Duration(milliseconds: 300), () => _listCtrl.forward());
-
     _fetchHomeworks();
     _fetchClasses();
   }
@@ -142,8 +129,6 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen>
     super.dispose();
   }
 
-  // ── API ─────────────────────────────────────────────────────────────────────
-
   Future<void> _fetchHomeworks() async {
     setState(() => _loadingHw = true);
     try {
@@ -152,29 +137,27 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen>
         final List raw = res['homeworks'] ?? [];
         setState(() {
           _homeworks = List.generate(raw.length, (i) {
-            final h = raw[i];
+            final h = raw[i] as Map<String, dynamic>;
             return HomeworkItem(
-              id:           h['id'] as int,
-              title:        h['title'] ?? '',
-              description:  h['description'] ?? '',
-              classId:      h['class_id'] as int? ?? 0,
-              className:    h['class_name'] ?? '',
-              subject:      h['subject'] ?? '',
-              subjectColor: _hexColor(h['subject_color'], i),
-              subjectIcon:  h['icon'] ?? '📚',
-              dueDate:      DateTime.parse(h['due_date']),
-              createdAt:    DateTime.parse(h['created_at']),
-              totalStudents: h['total_students'] as int? ?? 0,
-              submitted:     h['submitted_count'] as int? ?? 0,
+              id:           (h['id'] as num).toInt(),
+              title:        h['title']        as String? ?? '',
+              description:  h['description']  as String? ?? '',
+              classId:      (h['class_id']    as num?)?.toInt() ?? 0,
+              className:    h['class_name']   as String? ?? '',
+              subject:      h['subject']      as String? ?? '',
+              subjectColor: _hexColor(h['subject_color'] as String?, i),
+              subjectIcon:  h['icon']         as String? ?? '📚',
+              dueDate:      DateTime.parse(h['due_date'] as String),
+              createdAt:    DateTime.parse(h['created_at'] as String),
+              totalStudents: (h['total_students']  as num?)?.toInt() ?? 0,
+              submitted:     (h['submitted_count'] as num?)?.toInt() ?? 0,
               attachments:   List<String>.from(h['attachments'] ?? []),
-              status:        h['status'] ?? 'Active',
+              status:        h['status'] as String? ?? 'Active',
             );
           });
           _loadingHw = false;
         });
-        _listCtrl
-          ..reset()
-          ..forward();
+        _listCtrl..reset()..forward();
       } else {
         if (mounted) setState(() => _loadingHw = false);
       }
@@ -191,14 +174,14 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen>
         final List raw = res['classes'] ?? [];
         setState(() {
           _classes = List.generate(raw.length, (i) {
-            final c = raw[i];
+            final c = raw[i] as Map<String, dynamic>;
             return TeacherClassInfo(
-              id:           c['id'] as int,
-              name:         c['name'] ?? '',
-              subject:      c['subject'] ?? '',
-              icon:         c['icon'] ?? '📚',
-              color:        _hexColor(c['color'], i),
-              studentCount: c['student_count'] as int? ?? 0,
+              id:           (c['id'] as num).toInt(),
+              name:         c['name']          as String? ?? '',
+              subject:      c['subject']       as String? ?? '',
+              icon:         c['icon']          as String? ?? '📚',
+              color:        _hexColor(c['color'] as String?, i),
+              studentCount: (c['student_count'] as num?)?.toInt() ?? 0,
             );
           });
           _loadingClasses = false;
@@ -230,8 +213,6 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen>
     ));
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -249,17 +230,17 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen>
                     controller: _tabController,
                     children: [
                       _HomeworkListTab(
-                        homeworks:   _homeworks,
-                        isLoading:   _loadingHw,
-                        listCtrl:    _listCtrl,
-                        onDelete:    _deleteHomework,
-                        onRefresh:   _fetchHomeworks,
+                        homeworks: _homeworks,
+                        isLoading: _loadingHw,
+                        listCtrl:  _listCtrl,
+                        onDelete:  _deleteHomework,
+                        onRefresh: _fetchHomeworks,
                       ),
                       _ClassesTab(
-                        classes:     _classes,
-                        isLoading:   _loadingClasses,
-                        listCtrl:    _listCtrl,
-                        onRefresh:   _fetchClasses,
+                        classes:   _classes,
+                        isLoading: _loadingClasses,
+                        listCtrl:  _listCtrl,
+                        onRefresh: _fetchClasses,
                       ),
                     ],
                   ),
@@ -267,11 +248,9 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen>
               ],
             ),
           ),
-          // FAB
           Positioned(
-            bottom: 28,
-            right:  24,
-            child:  _buildFAB(),
+            bottom: 28, right: 24,
+            child: _buildFAB(),
           ),
         ],
       ),
@@ -320,15 +299,10 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen>
               ],
             ),
             const Spacer(),
-            // Refresh
             GestureDetector(
-              onTap: () {
-                _fetchHomeworks();
-                _fetchClasses();
-              },
+              onTap: () { _fetchHomeworks(); _fetchClasses(); },
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFF00C6FF).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
@@ -336,8 +310,7 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen>
                       color: const Color(0xFF00C6FF).withOpacity(0.25)),
                 ),
                 child: Row(children: [
-                  const Icon(Icons.refresh,
-                      color: Color(0xFF00C6FF), size: 14),
+                  const Icon(Icons.refresh, color: Color(0xFF00C6FF), size: 14),
                   const SizedBox(width: 5),
                   Text('${_homeworks.length} HW',
                       style: const TextStyle(
@@ -373,8 +346,7 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen>
           dividerColor: Colors.transparent,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white38,
-          labelStyle: const TextStyle(
-              fontWeight: FontWeight.w800, fontSize: 13),
+          labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
           tabs: [
             Tab(
               child: Row(
@@ -481,16 +453,10 @@ class _HomeworkListTabState extends State<_HomeworkListTab> {
 
   List<HomeworkItem> get _filtered {
     switch (_filter) {
-      case 'Active':
-        return widget.homeworks.where((h) => !h.isOverdue).toList();
-      case 'Overdue':
-        return widget.homeworks.where((h) => h.isOverdue).toList();
-      case 'Done':
-        return widget.homeworks
-            .where((h) => h.submitted == h.totalStudents)
-            .toList();
-      default:
-        return widget.homeworks;
+      case 'Active':  return widget.homeworks.where((h) => !h.isOverdue).toList();
+      case 'Overdue': return widget.homeworks.where((h) => h.isOverdue).toList();
+      case 'Done':    return widget.homeworks.where((h) => h.submitted == h.totalStudents).toList();
+      default:        return widget.homeworks;
     }
   }
 
@@ -501,8 +467,7 @@ class _HomeworkListTabState extends State<_HomeworkListTab> {
         _buildFilterChips(),
         Expanded(
           child: widget.isLoading
-              ? const Center(child: CircularProgressIndicator(
-              color: Color(0xFF00C6FF)))
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFF00C6FF)))
               : _filtered.isEmpty
               ? _buildEmpty()
               : RefreshIndicator(
@@ -510,33 +475,25 @@ class _HomeworkListTabState extends State<_HomeworkListTab> {
             color: const Color(0xFF00C6FF),
             backgroundColor: const Color(0xFF131929),
             child: ListView.builder(
-              padding:
-              const EdgeInsets.fromLTRB(20, 8, 20, 120),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
               itemCount: _filtered.length,
               itemBuilder: (context, i) {
                 return AnimatedBuilder(
                   animation: widget.listCtrl,
                   builder: (context, child) {
                     final delay = i * 0.08;
-                    final v = math.max(
-                        0.0,
-                        math.min(
-                            1.0,
-                            (widget.listCtrl.value - delay) /
-                                (1.0 - delay)));
-                    final c = Curves.easeOutCubic
-                        .transform(v.clamp(0.0, 1.0));
+                    final v = math.max(0.0, math.min(1.0,
+                        (widget.listCtrl.value - delay) / (1.0 - delay)));
+                    final c = Curves.easeOutCubic.transform(v.clamp(0.0, 1.0));
                     return Opacity(
                       opacity: v.clamp(0.0, 1.0),
                       child: Transform.translate(
-                          offset: Offset(0, 30 * (1 - c)),
-                          child: child),
+                          offset: Offset(0, 30 * (1 - c)), child: child),
                     );
                   },
                   child: _HomeworkCard(
-                    hw:       _filtered[i],
-                    onDelete: () =>
-                        widget.onDelete(_filtered[i]),
+                    hw: _filtered[i],
+                    onDelete: () => widget.onDelete(_filtered[i]),
                   ),
                 );
               },
@@ -560,21 +517,15 @@ class _HomeworkListTabState extends State<_HomeworkListTab> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: selected
-                      ? const LinearGradient(
-                      colors: [Color(0xFF00C6FF), Color(0xFF0072FF)])
+                      ? const LinearGradient(colors: [Color(0xFF00C6FF), Color(0xFF0072FF)])
                       : null,
-                  color: selected
-                      ? null
-                      : Colors.white.withOpacity(0.05),
+                  color: selected ? null : Colors.white.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: selected
-                        ? Colors.transparent
-                        : Colors.white.withOpacity(0.1),
+                    color: selected ? Colors.transparent : Colors.white.withOpacity(0.1),
                   ),
                 ),
                 child: Text(f,
@@ -608,7 +559,7 @@ class _HomeworkListTabState extends State<_HomeworkListTab> {
   }
 }
 
-// ─── Homework Card ────────────────────────────────────────────────────────────
+// ─── Homework Card ─────────────────────────────────────────────────────────────
 
 class _HomeworkCard extends StatelessWidget {
   final HomeworkItem hw;
@@ -624,11 +575,7 @@ class _HomeworkCard extends StatelessWidget {
         : hw.isDueSoon
         ? const Color(0xFFFFB347)
         : const Color(0xFF00D4AA);
-    final dueText = hw.isOverdue
-        ? 'Overdue'
-        : hw.isDueSoon
-        ? 'Due Soon'
-        : 'On Track';
+    final dueText = hw.isOverdue ? 'Overdue' : hw.isDueSoon ? 'Due Soon' : 'On Track';
 
     return GestureDetector(
       onTap: () => _showSubmissionSheet(context),
@@ -637,8 +584,7 @@ class _HomeworkCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF131929),
           borderRadius: BorderRadius.circular(20),
-          border:
-          Border.all(color: hw.subjectColor.withOpacity(0.2)),
+          border: Border.all(color: hw.subjectColor.withOpacity(0.2)),
           boxShadow: [
             BoxShadow(
                 color: hw.subjectColor.withOpacity(0.07),
@@ -648,16 +594,13 @@ class _HomeworkCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // Top accent bar
             Container(
               height: 4,
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [
-                  hw.subjectColor,
-                  hw.subjectColor.withOpacity(0.3)
-                ]),
-                borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20)),
+                gradient: LinearGradient(
+                    colors: [hw.subjectColor, hw.subjectColor.withOpacity(0.3)]),
+                borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(20)),
               ),
             ),
             Padding(
@@ -665,62 +608,49 @@ class _HomeworkCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
+                  Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
                           color: hw.subjectColor.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                            hw.subject.isNotEmpty
-                                ? hw.subject
-                                .substring(
-                                0,
-                                math.min(
-                                    3,
-                                    hw.subject.length))
-                                .toUpperCase()
-                                : 'HW',
-                            style: TextStyle(
-                                color: hw.subjectColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900)),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Text(
+                          hw.subject.isNotEmpty
+                              ? hw.subject
+                              .substring(0, math.min(3, hw.subject.length))
+                              .toUpperCase()
+                              : 'HW',
+                          style: TextStyle(
+                              color: hw.subjectColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900)),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.04),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(hw.className,
-                            style: TextStyle(
-                                color: Colors.white.withOpacity(0.5),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Text(hw.className,
+                          style: TextStyle(
+                              color: Colors.white.withOpacity(0.5),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
                           color: dueBadgeColor.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                              color: dueBadgeColor.withOpacity(0.3)),
-                        ),
-                        child: Text(dueText,
-                            style: TextStyle(
-                                color: dueBadgeColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800)),
-                      ),
-                    ],
-                  ),
+                          border: Border.all(color: dueBadgeColor.withOpacity(0.3))),
+                      child: Text(dueText,
+                          style: TextStyle(
+                              color: dueBadgeColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                  ]),
                   const SizedBox(height: 12),
                   Text(hw.title,
                       style: const TextStyle(
@@ -739,122 +669,98 @@ class _HomeworkCard extends StatelessWidget {
                   const SizedBox(height: 14),
                   if (hw.attachments.isNotEmpty) ...[
                     Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: hw.attachments
-                          .map((a) => _attachChip(a))
-                          .toList(),
+                      spacing: 6, runSpacing: 6,
+                      children: hw.attachments.map((a) => _attachChip(a)).toList(),
                     ),
                     const SizedBox(height: 12),
                   ],
-                  // Submission progress
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                          children: [
-                            Row(children: [
-                              Text(
-                                  '${hw.submitted}/${hw.totalStudents} submitted',
-                                  style: TextStyle(
-                                      color: Colors.white
-                                          .withOpacity(0.6),
-                                      fontSize: 12,
-                                      fontWeight:
-                                      FontWeight.w600)),
-                              const Spacer(),
-                              Text(
-                                  '${(hw.submissionRate * 100).toInt()}%',
-                                  style: TextStyle(
-                                      color: hw.subjectColor,
-                                      fontSize: 12,
-                                      fontWeight:
-                                      FontWeight.w800)),
-                            ]),
-                            const SizedBox(height: 6),
-                            ClipRRect(
-                              borderRadius:
-                              BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: hw.submissionRate,
-                                backgroundColor:
-                                Colors.white.withOpacity(0.06),
-                                valueColor:
-                                AlwaysStoppedAnimation<Color>(
-                                    hw.subjectColor),
-                                minHeight: 5,
-                              ),
+                  Row(children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Text('${hw.submitted}/${hw.totalStudents} submitted',
+                                style: TextStyle(
+                                    color: Colors.white.withOpacity(0.6),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600)),
+                            const Spacer(),
+                            Text('${(hw.submissionRate * 100).toInt()}%',
+                                style: TextStyle(
+                                    color: hw.subjectColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800)),
+                          ]),
+                          const SizedBox(height: 6),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: hw.submissionRate,
+                              backgroundColor: Colors.white.withOpacity(0.06),
+                              valueColor: AlwaysStoppedAnimation<Color>(hw.subjectColor),
+                              minHeight: 5,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ]),
                 ],
               ),
             ),
-            // Bottom bar
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.02),
-                borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(20)),
+                borderRadius:
+                const BorderRadius.vertical(bottom: Radius.circular(20)),
                 border: Border(
-                    top: BorderSide(
-                        color: Colors.white.withOpacity(0.05))),
+                    top: BorderSide(color: Colors.white.withOpacity(0.05))),
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.calendar_today_outlined,
-                      color: Colors.white.withOpacity(0.3),
-                      size: 13),
-                  const SizedBox(width: 5),
-                  Text(_fmtDate(hw.dueDate),
+              child: Row(children: [
+                Icon(Icons.calendar_today_outlined,
+                    color: Colors.white.withOpacity(0.3), size: 13),
+                const SizedBox(width: 5),
+                Text(_fmtDate(hw.dueDate),
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.4), fontSize: 12)),
+                const SizedBox(width: 14),
+                if (pending > 0) ...[
+                  Icon(Icons.pending_outlined,
+                      color: const Color(0xFFFFB347), size: 13),
+                  const SizedBox(width: 4),
+                  Text('$pending pending',
+                      style: const TextStyle(
+                          color: Color(0xFFFFB347),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                ] else ...[
+                  const Icon(Icons.check_circle,
+                      color: Color(0xFF00D4AA), size: 13),
+                  const SizedBox(width: 4),
+                  const Text('All submitted',
                       style: TextStyle(
-                          color: Colors.white.withOpacity(0.4),
-                          fontSize: 12)),
-                  const SizedBox(width: 14),
-                  if (pending > 0) ...[
-                    Icon(Icons.pending_outlined,
-                        color: const Color(0xFFFFB347), size: 13),
-                    const SizedBox(width: 4),
-                    Text('$pending pending',
-                        style: const TextStyle(
-                            color: Color(0xFFFFB347),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600)),
-                  ] else ...[
-                    const Icon(Icons.check_circle,
-                        color: Color(0xFF00D4AA), size: 13),
-                    const SizedBox(width: 4),
-                    const Text('All submitted',
-                        style: TextStyle(
-                            color: Color(0xFF00D4AA),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600)),
-                  ],
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => _showSubmissionSheet(context),
-                    child: Text('View →',
-                        style: TextStyle(
-                            color: hw.subjectColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700)),
-                  ),
-                  const SizedBox(width: 14),
-                  GestureDetector(
-                    onTap: onDelete,
-                    child: Icon(Icons.delete_outline,
-                        color: Colors.white.withOpacity(0.2),
-                        size: 18),
-                  ),
+                          color: Color(0xFF00D4AA),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
                 ],
-              ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => _showSubmissionSheet(context),
+                  child: Text('View →',
+                      style: TextStyle(
+                          color: hw.subjectColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(width: 14),
+                GestureDetector(
+                  onTap: onDelete,
+                  child: Icon(Icons.delete_outline,
+                      color: Colors.white.withOpacity(0.2), size: 18),
+                ),
+              ]),
             ),
           ],
         ),
@@ -864,8 +770,7 @@ class _HomeworkCard extends StatelessWidget {
 
   Widget _attachChip(String name) {
     return Container(
-      padding:
-      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8),
@@ -874,13 +779,10 @@ class _HomeworkCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.attach_file,
-              color: Colors.white.withOpacity(0.4), size: 12),
+          Icon(Icons.attach_file, color: Colors.white.withOpacity(0.4), size: 12),
           const SizedBox(width: 4),
           Text(name,
-              style: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
-                  fontSize: 11)),
+              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11)),
         ],
       ),
     );
@@ -898,7 +800,7 @@ class _HomeworkCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SUBMISSION DETAIL SHEET  (with real API)
+// SUBMISSION SHEET — RED ERROR FIX HERE
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _SubmissionSheet extends StatefulWidget {
@@ -932,11 +834,9 @@ class _SubmissionSheetState extends State<_SubmissionSheet>
       final res = await HomeworkApi.getSubmissions(widget.hw.id);
       if (res['success'] == true && mounted) {
         setState(() {
-          _submitted = List<Map<String, dynamic>>.from(
-              res['submitted'] ?? []);
-          _pending = List<Map<String, dynamic>>.from(
-              res['pending'] ?? []);
-          _loading = false;
+          _submitted = List<Map<String, dynamic>>.from(res['submitted'] ?? []);
+          _pending   = List<Map<String, dynamic>>.from(res['pending']   ?? []);
+          _loading   = false;
         });
       } else {
         if (mounted) setState(() => _loading = false);
@@ -968,62 +868,58 @@ class _SubmissionSheetState extends State<_SubmissionSheet>
             Padding(
               padding: const EdgeInsets.only(top: 12, bottom: 16),
               child: Container(
-                  width: 40,
-                  height: 4,
+                  width: 40, height: 4,
                   decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(2))),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  Container(
-                    width: 46, height: 46,
-                    decoration: BoxDecoration(
-                      color: hw.subjectColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Center(
-                        child: Text(hw.subjectIcon,
-                            style: const TextStyle(fontSize: 22))),
+              child: Row(children: [
+                Container(
+                  width: 46, height: 46,
+                  decoration: BoxDecoration(
+                    color: hw.subjectColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(hw.title,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        Text(hw.className,
-                            style: TextStyle(
-                                color: Colors.white.withOpacity(0.4),
-                                fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                  child: Center(
+                      child: Text(hw.subjectIcon,
+                          style: const TextStyle(fontSize: 22))),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                          '${(hw.submissionRate * 100).toInt()}%',
+                      Text(hw.title,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      Text(hw.className,
                           style: TextStyle(
-                              color: hw.subjectColor,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900)),
-                      Text('submitted',
-                          style: TextStyle(
-                              color: Colors.white.withOpacity(0.35),
-                              fontSize: 11)),
+                              color: Colors.white.withOpacity(0.4),
+                              fontSize: 13)),
                     ],
                   ),
-                ],
-              ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('${(hw.submissionRate * 100).toInt()}%',
+                        style: TextStyle(
+                            color: hw.subjectColor,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900)),
+                    Text('submitted',
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.35),
+                            fontSize: 11)),
+                  ],
+                ),
+              ]),
             ),
             const SizedBox(height: 16),
             Padding(
@@ -1039,8 +935,7 @@ class _SubmissionSheetState extends State<_SubmissionSheet>
                   indicator: BoxDecoration(
                     color: hw.subjectColor.withOpacity(0.25),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                        color: hw.subjectColor.withOpacity(0.5)),
+                    border: Border.all(color: hw.subjectColor.withOpacity(0.5)),
                   ),
                   indicatorSize: TabBarIndicatorSize.tab,
                   dividerColor: Colors.transparent,
@@ -1064,28 +959,19 @@ class _SubmissionSheetState extends State<_SubmissionSheet>
                   : TabBarView(
                 controller: _tab,
                 children: [
-                  _studentList(
-                      _submitted,
-                      const Color(0xFF00D4AA),
-                      true),
-                  _studentList(
-                      _pending,
-                      const Color(0xFFFFB347),
-                      false),
+                  _studentList(_submitted, const Color(0xFF00D4AA), true),
+                  _studentList(_pending,   const Color(0xFFFFB347), false),
                 ],
               ),
             ),
-            // Reminder button
             if (_tabIdx == 1 && _pending.isNotEmpty)
               Padding(
-                padding:
-                const EdgeInsets.fromLTRB(24, 8, 24, 32),
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
                 child: GestureDetector(
                   onTap: () {
                     HapticFeedback.mediumImpact();
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(SnackBar(
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       backgroundColor: const Color(0xFFFFB347),
                       content: Text(
                           '🔔 Reminder sent to ${_pending.length} students!'),
@@ -1097,15 +983,12 @@ class _SubmissionSheetState extends State<_SubmissionSheet>
                   child: Container(
                     height: 50,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [
-                        Color(0xFFFFB347),
-                        Color(0xFFFF8C42)
-                      ]),
+                      gradient: const LinearGradient(
+                          colors: [Color(0xFFFFB347), Color(0xFFFF8C42)]),
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                            color: const Color(0xFFFFB347)
-                                .withOpacity(0.35),
+                            color: const Color(0xFFFFB347).withOpacity(0.35),
                             blurRadius: 12,
                             offset: const Offset(0, 5)),
                       ],
@@ -1113,13 +996,10 @@ class _SubmissionSheetState extends State<_SubmissionSheet>
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(
-                            Icons.notifications_outlined,
-                            color: Colors.white,
-                            size: 18),
+                        const Icon(Icons.notifications_outlined,
+                            color: Colors.white, size: 18),
                         const SizedBox(width: 8),
-                        Text(
-                            'Send Reminder to ${_pending.length} Students',
+                        Text('Send Reminder to ${_pending.length} Students',
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w800,
@@ -1135,80 +1015,232 @@ class _SubmissionSheetState extends State<_SubmissionSheet>
     );
   }
 
-  Widget _studentList(List<Map<String, dynamic>> list,
-      Color color, bool isSubmitted) {
+  Widget _studentList(
+      List<Map<String, dynamic>> list, Color color, bool isSubmitted) {
     if (list.isEmpty) {
       return Center(
         child: Text(
           isSubmitted ? 'No submissions yet' : 'Everyone submitted! 🎉',
-          style: TextStyle(
-              color: Colors.white.withOpacity(0.4), fontSize: 14),
+          style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 14),
         ),
       );
     }
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
       itemCount: list.length,
-      itemBuilder: (_, i) {
-        final s = list[i];
-        final name = s['name'] ?? s['username'] ?? '—';
+      itemBuilder: (context, i) {
+        final s    = list[i];
+        // ✅ FIX: explicit toString() to avoid (dynamic)=>dynamic error
+        final name = (s['name'] ?? s['username'] ?? '—').toString();
         final initials = name
             .split(' ')
             .map<String>((w) => w.isNotEmpty ? w[0] : '')
             .take(2)
             .join()
             .toUpperCase();
+
+        DateTime? submittedAt;
+        final rawAt = s['submitted_at'];
+        if (rawAt != null) {
+          submittedAt = DateTime.tryParse(rawAt.toString());
+        }
+
+        final note      = (s['note']      ?? '').toString();
+        final fileName  = (s['file_name'] ?? '').toString();
+        final fileUrl   = (s['file_url']  ?? '').toString();
+        final studentId = s['id'] is num
+            ? (s['id'] as num).toInt()
+            : int.tryParse(s['id'].toString()) ?? 0;
+
         return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.symmetric(
-              horizontal: 14, vertical: 12),
+          margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(
             color: color.withOpacity(0.06),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: color.withOpacity(0.15)),
           ),
-          child: Row(
+          child: Column(
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(10)),
-                child: Center(
-                    child: Text(initials,
-                        style: TextStyle(
-                            color: color,
-                            fontWeight: FontWeight.w900))),
+              // ── Student header row ──────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+                child: Row(children: [
+                  Container(
+                    width: 38, height: 38,
+                    decoration: BoxDecoration(
+                        color: color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Center(
+                        child: Text(initials,
+                            style: TextStyle(
+                                color: color,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900))),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700)),
+                        if (isSubmitted && submittedAt != null)
+                          Text(_fmtDate(submittedAt),
+                              style: TextStyle(
+                                  color: Colors.white.withOpacity(0.35),
+                                  fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    isSubmitted
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    color: color,
+                    size: 20,
+                  ),
+                ]),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600)),
-                    if (isSubmitted &&
-                        s['submitted_at'] != null)
-                      Text(
-                          _fmtDate(DateTime.parse(
-                              s['submitted_at'])),
-                          style: TextStyle(
-                              color: Colors.white.withOpacity(0.35),
-                              fontSize: 11)),
-                  ],
+
+              // ── Submission details (note + file) ──────────────
+              if (isSubmitted && (fileName.isNotEmpty || note.isNotEmpty))
+                Container(
+                  margin: const EdgeInsets.fromLTRB(14, 0, 14, 0),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: color.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (fileName.isNotEmpty)
+                        Row(children: [
+                          Icon(Icons.attach_file, color: color, size: 14),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(fileName,
+                                style: TextStyle(
+                                    color: color,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                        ]),
+                      if (fileName.isNotEmpty && note.isNotEmpty)
+                        const SizedBox(height: 4),
+                      if (note.isNotEmpty)
+                        Text('"$note"',
+                            style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic)),
+                    ],
+                  ),
                 ),
-              ),
-              Icon(
-                isSubmitted
-                    ? Icons.check_circle
-                    : Icons.radio_button_unchecked,
-                color: color,
-                size: 20,
-              ),
+
+              // ── Action buttons: Review PDF + Give Marks ────────
+              if (isSubmitted)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+                  child: Row(children: [
+                    // View PDF button
+                    if (fileName.isNotEmpty)
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: Colors.transparent,
+                              isScrollControlled: true,
+                              builder: (_) => _PdfReviewSheet(
+                                studentName: name,
+                                fileName: fileName,
+                                fileUrl: fileUrl,
+                                note: note,
+                                color: color,
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 9),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6C63FF).withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: const Color(0xFF6C63FF).withOpacity(0.3)),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.picture_as_pdf_outlined,
+                                    color: Color(0xFF6C63FF), size: 14),
+                                SizedBox(width: 5),
+                                Text('Review',
+                                    style: TextStyle(
+                                        color: Color(0xFF6C63FF),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (fileName.isNotEmpty) const SizedBox(width: 8),
+                    // Give Marks button
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.mediumImpact();
+                          showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.transparent,
+                            isScrollControlled: true,
+                            builder: (_) => _GiveMarksSheet(
+                              studentName: name,
+                              studentId: studentId,
+                              homeworkId: widget.hw.id,
+                              color: color,
+                              existingMarks: s['marks'] is num
+                                  ? (s['marks'] as num).toDouble()
+                                  : null,
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 9),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: color.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.star_outline, color: color, size: 14),
+                              const SizedBox(width: 5),
+                              Text(
+                                s['marks'] != null
+                                    ? '${s['marks']} pts'
+                                    : 'Marks',
+                                style: TextStyle(
+                                    color: color,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ]),
+                ),
             ],
           ),
         );
@@ -1218,13 +1250,13 @@ class _SubmissionSheetState extends State<_SubmissionSheet>
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TAB 2 — CLASSES (read-only from API)
+// TAB 2 — CLASSES
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _ClassesTab extends StatelessWidget {
-  final List<TeacherClassInfo> classes;
-  final bool                   isLoading;
-  final AnimationController    listCtrl;
+  final List<TeacherClassInfo>  classes;
+  final bool                    isLoading;
+  final AnimationController     listCtrl;
   final Future<void> Function() onRefresh;
 
   const _ClassesTab({
@@ -1238,8 +1270,7 @@ class _ClassesTab extends StatelessWidget {
   Widget build(BuildContext context) {
     if (isLoading) {
       return const Center(
-          child:
-          CircularProgressIndicator(color: Color(0xFF00C6FF)));
+          child: CircularProgressIndicator(color: Color(0xFF00C6FF)));
     }
     if (classes.isEmpty) {
       return Center(
@@ -1250,14 +1281,11 @@ class _ClassesTab extends StatelessWidget {
             const SizedBox(height: 12),
             const Text('No classes yet',
                 style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700)),
+                    color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
             Text('Ask Admin to create a class for you',
                 style: TextStyle(
-                    color: Colors.white.withOpacity(0.4),
-                    fontSize: 13)),
+                    color: Colors.white.withOpacity(0.4), fontSize: 13)),
           ],
         ),
       );
@@ -1274,19 +1302,13 @@ class _ClassesTab extends StatelessWidget {
             animation: listCtrl,
             builder: (_, child) {
               final delay = i * 0.1;
-              final v = math.max(
-                  0.0,
-                  math.min(
-                      1.0,
-                      (listCtrl.value - delay) /
-                          (1.0 - delay)));
-              final c =
-              Curves.easeOutCubic.transform(v.clamp(0.0, 1.0));
+              final v = math.max(0.0,
+                  math.min(1.0, (listCtrl.value - delay) / (1.0 - delay)));
+              final c = Curves.easeOutCubic.transform(v.clamp(0.0, 1.0));
               return Opacity(
                 opacity: v.clamp(0.0, 1.0),
                 child: Transform.translate(
-                    offset: Offset(0, 25 * (1 - c)),
-                    child: child),
+                    offset: Offset(0, 25 * (1 - c)), child: child),
               );
             },
             child: _ClassCard(cls: classes[i]),
@@ -1323,56 +1345,52 @@ class _ClassCard extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                   colors: [cls.color, cls.color.withOpacity(0.3)]),
-              borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20)),
+              borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(20)),
             ),
           ),
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 48, height: 48,
-                  decoration: BoxDecoration(
+            child: Row(children: [
+              Container(
+                width: 48, height: 48,
+                decoration: BoxDecoration(
                     color: cls.color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Center(
-                      child: Text(cls.icon,
-                          style: const TextStyle(fontSize: 24))),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(cls.name,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800)),
-                      Text(cls.subject,
-                          style: TextStyle(
-                              color: cls.color, fontSize: 13)),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                    borderRadius: BorderRadius.circular(14)),
+                child: Center(
+                    child: Text(cls.icon,
+                        style: const TextStyle(fontSize: 24))),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${cls.studentCount}',
+                    Text(cls.name,
                         style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900)),
-                    Text('students',
-                        style: TextStyle(
-                            color: Colors.white.withOpacity(0.35),
-                            fontSize: 11)),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800)),
+                    Text(cls.subject,
+                        style: TextStyle(color: cls.color, fontSize: 13)),
                   ],
                 ),
-              ],
-            ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('${cls.studentCount}',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900)),
+                  Text('students',
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.35),
+                          fontSize: 11)),
+                ],
+              ),
+            ]),
           ),
         ],
       ),
@@ -1388,8 +1406,7 @@ class _SendHomeworkSheet extends StatefulWidget {
   final List<TeacherClassInfo> classes;
   final VoidCallback           onSent;
 
-  const _SendHomeworkSheet(
-      {required this.classes, required this.onSent});
+  const _SendHomeworkSheet({required this.classes, required this.onSent});
 
   @override
   State<_SendHomeworkSheet> createState() => _SendHomeworkSheetState();
@@ -1400,8 +1417,8 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
   final _descCtrl  = TextEditingController();
   TeacherClassInfo? _selectedClass;
   DateTime?         _dueDate;
-  final List<String> _attachmentPaths = []; // real file paths
-  final List<String> _attachmentNames = []; // display names
+  final List<String> _attachmentPaths = [];
+  final List<String> _attachmentNames = [];
   bool _isSending = false;
 
   @override
@@ -1427,15 +1444,13 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
   }
 
   Future<void> _send() async {
-    if (_titleCtrl.text.trim().isEmpty ||
-        _selectedClass == null) return;
+    if (_titleCtrl.text.trim().isEmpty || _selectedClass == null) return;
     if (_dueDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: const Color(0xFFFF6584),
         content: const Text('Please set a due date!'),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
       return;
     }
@@ -1446,9 +1461,8 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
       classId:     _selectedClass!.id,
       title:       _titleCtrl.text.trim(),
       description: _descCtrl.text.trim(),
-      dueDate:
-      '${_dueDate!.toIso8601String().split('T')[0]} 23:59:00',
-      filePaths: _attachmentPaths,
+      dueDate:     '${_dueDate!.toIso8601String().split('T')[0]} 23:59:00',
+      filePaths:   _attachmentPaths,
     );
 
     if (mounted) setState(() => _isSending = false);
@@ -1461,16 +1475,14 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
         content: Text(
             '✓ Homework assigned to ${_selectedClass!.name}! 🔔 ${_selectedClass!.studentCount} students notified'),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: const Color(0xFFFF6584),
         content: Text(res['message'] ?? 'Failed to assign homework'),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
     }
   }
@@ -1483,8 +1495,7 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
       builder: (_, scroll) => Container(
         decoration: const BoxDecoration(
           color: Color(0xFF0F1623),
-          borderRadius:
-          BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Column(
           children: [
@@ -1494,38 +1505,33 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
                 children: [
                   Center(
                     child: Container(
-                        width: 40,
-                        height: 4,
+                        width: 40, height: 4,
                         decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(2))),
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      ShaderMask(
-                        shaderCallback: (b) =>
-                            const LinearGradient(colors: [
-                              Color(0xFF00C6FF),
-                              Color(0xFF0072FF)
-                            ]).createShader(b),
-                        child: const Text('Assign Homework',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900)),
-                      ),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Icon(Icons.close,
-                            color: Colors.white.withOpacity(0.4)),
-                      ),
-                    ],
-                  ),
+                  Row(children: [
+                    ShaderMask(
+                      shaderCallback: (b) => const LinearGradient(
+                          colors: [Color(0xFF00C6FF), Color(0xFF0072FF)])
+                          .createShader(b),
+                      child: const Text('Assign Homework',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900)),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Icon(Icons.close,
+                          color: Colors.white.withOpacity(0.4)),
+                    ),
+                  ]),
                   const SizedBox(height: 4),
                   Text(
-                    '🔔 Notification sent ONLY to selected class',
+                    '🔔 Notification sent to selected class students',
                     style: TextStyle(
                         color: Colors.white.withOpacity(0.4),
                         fontSize: 12,
@@ -1538,15 +1544,12 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
             Expanded(
               child: ListView(
                 controller: scroll,
-                padding:
-                const EdgeInsets.fromLTRB(24, 0, 24, 120),
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
                 children: [
-                  // Select Class
                   _label('1. SELECT CLASS'),
                   const SizedBox(height: 10),
                   ...widget.classes.map((cls) => GestureDetector(
-                    onTap: () =>
-                        setState(() => _selectedClass = cls),
+                    onTap: () => setState(() => _selectedClass = cls),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       margin: const EdgeInsets.only(bottom: 8),
@@ -1561,47 +1564,36 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
                           color: _selectedClass?.id == cls.id
                               ? cls.color.withOpacity(0.5)
                               : Colors.white.withOpacity(0.06),
-                          width: _selectedClass?.id == cls.id
-                              ? 1.5
-                              : 1,
+                          width: _selectedClass?.id == cls.id ? 1.5 : 1,
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Text(cls.icon,
-                              style:
-                              const TextStyle(fontSize: 22)),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                              children: [
-                                Text(cls.name,
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight:
-                                        FontWeight.w700,
-                                        fontSize: 14)),
-                                Text(
-                                    '${cls.studentCount} students  •  ${cls.subject}',
-                                    style: TextStyle(
-                                        color: Colors.white
-                                            .withOpacity(0.4),
-                                        fontSize: 12)),
-                              ],
-                            ),
+                      child: Row(children: [
+                        Text(cls.icon,
+                            style: const TextStyle(fontSize: 22)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(cls.name,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14)),
+                              Text(
+                                  '${cls.studentCount} students  •  ${cls.subject}',
+                                  style: TextStyle(
+                                      color: Colors.white.withOpacity(0.4),
+                                      fontSize: 12)),
+                            ],
                           ),
-                          if (_selectedClass?.id == cls.id)
-                            Icon(Icons.check_circle,
-                                color: cls.color, size: 22)
-                          else
-                            Icon(Icons.radio_button_unchecked,
-                                color:
-                                Colors.white.withOpacity(0.2),
-                                size: 22),
-                        ],
-                      ),
+                        ),
+                        if (_selectedClass?.id == cls.id)
+                          Icon(Icons.check_circle, color: cls.color, size: 22)
+                        else
+                          Icon(Icons.radio_button_unchecked,
+                              color: Colors.white.withOpacity(0.2), size: 22),
+                      ]),
                     ),
                   )),
 
@@ -1609,39 +1601,28 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
                     const SizedBox(height: 20),
                     _label('2. HOMEWORK DETAILS'),
                     const SizedBox(height: 10),
-                    _hwField(_titleCtrl, 'Homework Title',
-                        Icons.title,
+                    _hwField(_titleCtrl, 'Homework Title', Icons.title,
                         onChanged: (_) => setState(() {})),
                     const SizedBox(height: 10),
                     TextField(
                       controller: _descCtrl,
                       maxLines: 4,
                       style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          height: 1.5),
+                          color: Colors.white, fontSize: 14, height: 1.5),
                       decoration: InputDecoration(
                         hintText: 'Instructions...',
                         hintStyle: TextStyle(
-                            color: Colors.white.withOpacity(0.25),
-                            fontSize: 14),
+                            color: Colors.white.withOpacity(0.25), fontSize: 14),
                         filled: true,
-                        fillColor:
-                        Colors.white.withOpacity(0.04),
+                        fillColor: Colors.white.withOpacity(0.04),
                         border: OutlineInputBorder(
-                          borderRadius:
-                          BorderRadius.circular(14),
-                          borderSide: BorderSide.none,
-                        ),
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius:
-                          BorderRadius.circular(14),
-                          borderSide: const BorderSide(
-                              color: Color(0xFF00C6FF),
-                              width: 1.5),
-                        ),
-                        contentPadding:
-                        const EdgeInsets.all(16),
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                                color: Color(0xFF00C6FF), width: 1.5)),
+                        contentPadding: const EdgeInsets.all(16),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -1651,15 +1632,12 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
                       onTap: () async {
                         final p = await showDatePicker(
                           context: context,
-                          initialDate: DateTime.now()
-                              .add(const Duration(days: 3)),
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now()
-                              .add(const Duration(days: 90)),
+                          initialDate: DateTime.now().add(const Duration(days: 3)),
+                          firstDate:   DateTime.now(),
+                          lastDate:    DateTime.now().add(const Duration(days: 90)),
                           builder: (ctx, child) => Theme(
                             data: ThemeData.dark().copyWith(
-                              colorScheme:
-                              const ColorScheme.dark(
+                              colorScheme: const ColorScheme.dark(
                                 primary: Color(0xFF00C6FF),
                                 surface: Color(0xFF131929),
                               ),
@@ -1667,34 +1645,27 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
                             child: child!,
                           ),
                         );
-                        if (p != null)
-                          setState(() => _dueDate = p);
+                        if (p != null) setState(() => _dueDate = p);
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
                           color: _dueDate != null
-                              ? const Color(0xFF00C6FF)
-                              .withOpacity(0.08)
+                              ? const Color(0xFF00C6FF).withOpacity(0.08)
                               : Colors.white.withOpacity(0.04),
-                          borderRadius:
-                          BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: _dueDate != null
-                                ? const Color(0xFF00C6FF)
-                                .withOpacity(0.4)
-                                : Colors.white
-                                .withOpacity(0.08),
+                                ? const Color(0xFF00C6FF).withOpacity(0.4)
+                                : Colors.white.withOpacity(0.08),
                           ),
                         ),
                         child: Row(children: [
-                          Icon(
-                              Icons.calendar_today_outlined,
+                          Icon(Icons.calendar_today_outlined,
                               color: _dueDate != null
                                   ? const Color(0xFF00C6FF)
-                                  : Colors.white
-                                  .withOpacity(0.3),
+                                  : Colors.white.withOpacity(0.3),
                               size: 18),
                           const SizedBox(width: 12),
                           Text(
@@ -1704,8 +1675,7 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
                             style: TextStyle(
                               color: _dueDate != null
                                   ? const Color(0xFF00C6FF)
-                                  : Colors.white
-                                  .withOpacity(0.3),
+                                  : Colors.white.withOpacity(0.3),
                               fontWeight: _dueDate != null
                                   ? FontWeight.w700
                                   : FontWeight.w400,
@@ -1720,29 +1690,23 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
                     GestureDetector(
                       onTap: _pickFile,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.04),
-                          borderRadius:
-                          BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                              color:
-                              Colors.white.withOpacity(0.1)),
+                              color: Colors.white.withOpacity(0.1)),
                         ),
                         child: Row(
-                          mainAxisAlignment:
-                          MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.attach_file,
-                                color: const Color(0xFF00C6FF)
-                                    .withOpacity(0.7),
+                                color: const Color(0xFF00C6FF).withOpacity(0.7),
                                 size: 18),
                             const SizedBox(width: 8),
                             Text('Attach File',
                                 style: TextStyle(
-                                    color: const Color(0xFF00C6FF)
-                                        .withOpacity(0.7),
+                                    color: const Color(0xFF00C6FF).withOpacity(0.7),
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13)),
                           ],
@@ -1757,44 +1721,33 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
                             .asMap()
                             .entries
                             .map((e) => Container(
-                          padding:
-                          const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.white
-                                .withOpacity(0.06),
-                            borderRadius:
-                            BorderRadius.circular(10),
+                            color: Colors.white.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                                color: Colors.white
-                                    .withOpacity(0.1)),
+                                color: Colors.white.withOpacity(0.1)),
                           ),
                           child: Row(
-                            mainAxisSize:
-                            MainAxisSize.min,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.attach_file,
-                                  color: Colors.white
-                                      .withOpacity(0.4),
+                                  color: Colors.white.withOpacity(0.4),
                                   size: 13),
                               const SizedBox(width: 4),
                               Text(e.value,
                                   style: TextStyle(
-                                      color: Colors.white
-                                          .withOpacity(0.6),
+                                      color: Colors.white.withOpacity(0.6),
                                       fontSize: 12)),
                               const SizedBox(width: 6),
                               GestureDetector(
                                 onTap: () => setState(() {
-                                  _attachmentPaths
-                                      .removeAt(e.key);
-                                  _attachmentNames
-                                      .removeAt(e.key);
+                                  _attachmentPaths.removeAt(e.key);
+                                  _attachmentNames.removeAt(e.key);
                                 }),
                                 child: Icon(Icons.close,
-                                    color: Colors.white
-                                        .withOpacity(0.3),
+                                    color: Colors.white.withOpacity(0.3),
                                     size: 14),
                               ),
                             ],
@@ -1807,19 +1760,16 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
                 ],
               ),
             ),
-            // Send button
             if (_selectedClass != null)
               Container(
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
                 decoration: BoxDecoration(
                   color: const Color(0xFF0F1623),
                   border: Border(
-                      top: BorderSide(
-                          color: Colors.white.withOpacity(0.06))),
+                      top: BorderSide(color: Colors.white.withOpacity(0.06))),
                 ),
                 child: GestureDetector(
-                  onTap: (_titleCtrl.text.trim().isEmpty ||
-                      _isSending)
+                  onTap: (_titleCtrl.text.trim().isEmpty || _isSending)
                       ? null
                       : _send,
                   child: AnimatedContainer(
@@ -1829,20 +1779,16 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
                       gradient: _titleCtrl.text.trim().isEmpty
                           ? const LinearGradient(
                           colors: [Colors.grey, Colors.grey])
-                          : const LinearGradient(colors: [
-                        Color(0xFF00C6FF),
-                        Color(0xFF0072FF)
-                      ]),
+                          : const LinearGradient(
+                          colors: [Color(0xFF00C6FF), Color(0xFF0072FF)]),
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow:
-                      _titleCtrl.text.trim().isEmpty
+                      boxShadow: _titleCtrl.text.trim().isEmpty
                           ? []
                           : [
                         BoxShadow(
-                            color: const Color(0xFF0072FF)
-                                .withOpacity(0.4),
+                            color: const Color(0xFF0072FF).withOpacity(0.4),
                             blurRadius: 16,
-                            offset: const Offset(0, 6))
+                            offset: const Offset(0, 6)),
                       ],
                     ),
                     child: Center(
@@ -1850,11 +1796,9 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
                           ? const SizedBox(
                           width: 22, height: 22,
                           child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2))
+                              color: Colors.white, strokeWidth: 2))
                           : Row(
-                        mainAxisAlignment:
-                        MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Icon(Icons.send_outlined,
                               color: Colors.white, size: 18),
@@ -1887,8 +1831,7 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
           fontWeight: FontWeight.w900,
           letterSpacing: 1.2));
 
-  Widget _hwField(TextEditingController ctrl, String hint,
-      IconData icon,
+  Widget _hwField(TextEditingController ctrl, String hint, IconData icon,
       {Function(String)? onChanged}) {
     return TextField(
       controller: ctrl,
@@ -1896,11 +1839,10 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
       style: const TextStyle(color: Colors.white, fontSize: 15),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.25), fontSize: 15),
+        hintStyle:
+        TextStyle(color: Colors.white.withOpacity(0.25), fontSize: 15),
         prefixIcon: Icon(icon,
-            color: const Color(0xFF00C6FF).withOpacity(0.6),
-            size: 20),
+            color: const Color(0xFF00C6FF).withOpacity(0.6), size: 20),
         filled: true,
         fillColor: Colors.white.withOpacity(0.04),
         border: OutlineInputBorder(
@@ -1908,10 +1850,499 @@ class _SendHomeworkSheetState extends State<_SendHomeworkSheet> {
             borderSide: BorderSide.none),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(
-                color: Color(0xFF00C6FF), width: 1.5)),
+            borderSide:
+            const BorderSide(color: Color(0xFF00C6FF), width: 1.5)),
         contentPadding:
         const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PDF REVIEW SHEET
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _PdfReviewSheet extends StatelessWidget {
+  final String studentName;
+  final String fileName;
+  final String fileUrl;
+  final String note;
+  final Color  color;
+
+  const _PdfReviewSheet({
+    required this.studentName,
+    required this.fileName,
+    required this.fileUrl,
+    required this.note,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isPdf = fileName.toLowerCase().endsWith('.pdf');
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      maxChildSize:     0.85,
+      builder: (_, scroll) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F1623),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 8),
+              child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(2))),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              child: Row(children: [
+                Container(
+                  width: 42, height: 42,
+                  decoration: BoxDecoration(
+                      color: color.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Icon(
+                    isPdf
+                        ? Icons.picture_as_pdf_outlined
+                        : Icons.insert_drive_file_outlined,
+                    color: color, size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(studentName,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800)),
+                      Text(fileName,
+                          style: TextStyle(
+                              color: Colors.white.withOpacity(0.4),
+                              fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Icon(Icons.close,
+                      color: Colors.white.withOpacity(0.4)),
+                ),
+              ]),
+            ),
+            Expanded(
+              child: ListView(
+                controller: scroll,
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+                children: [
+                  // File preview card
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: color.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          isPdf
+                              ? Icons.picture_as_pdf
+                              : Icons.image_outlined,
+                          color: color,
+                          size: 64,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(fileName,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700),
+                            textAlign: TextAlign.center),
+                        const SizedBox(height: 6),
+                        Text(
+                          fileUrl.isNotEmpty
+                              ? 'Submitted file from student'
+                              : 'File stored on server',
+                          style: TextStyle(
+                              color: Colors.white.withOpacity(0.35),
+                              fontSize: 12),
+                        ),
+                        const SizedBox(height: 20),
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              backgroundColor: color,
+                              content: Text('Opening $fileName...'),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ));
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                  colors: [color, color.withOpacity(0.7)]),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                    color: color.withOpacity(0.35),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4)),
+                              ],
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.open_in_new,
+                                    color: Colors.white, size: 18),
+                                SizedBox(width: 8),
+                                Text('Open File',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Student note
+                  if (note.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text('STUDENT\'S NOTE',
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.35),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2)),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.04),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: Colors.white.withOpacity(0.08)),
+                      ),
+                      child: Text('"$note"',
+                          style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 14,
+                              fontStyle: FontStyle.italic,
+                              height: 1.5)),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GIVE MARKS SHEET
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _GiveMarksSheet extends StatefulWidget {
+  final String  studentName;
+  final int     studentId;
+  final int     homeworkId;
+  final Color   color;
+  final double? existingMarks;
+
+  const _GiveMarksSheet({
+    required this.studentName,
+    required this.studentId,
+    required this.homeworkId,
+    required this.color,
+    this.existingMarks,
+  });
+
+  @override
+  State<_GiveMarksSheet> createState() => _GiveMarksSheetState();
+}
+
+class _GiveMarksSheetState extends State<_GiveMarksSheet> {
+  late TextEditingController _marksCtrl;
+  final _feedbackCtrl = TextEditingController();
+  bool _isSaving = false;
+  double _maxMarks = 10;
+
+  @override
+  void initState() {
+    super.initState();
+    _marksCtrl = TextEditingController(
+        text: widget.existingMarks?.toStringAsFixed(0) ?? '');
+  }
+
+  @override
+  void dispose() {
+    _marksCtrl.dispose();
+    _feedbackCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final marksStr = _marksCtrl.text.trim();
+    if (marksStr.isEmpty) return;
+    final marks = double.tryParse(marksStr);
+    if (marks == null || marks < 0 || marks > _maxMarks) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: const Color(0xFFFF6584),
+        content: Text('Enter valid marks (0–${_maxMarks.toInt()})'),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+      return;
+    }
+    setState(() => _isSaving = true);
+    HapticFeedback.heavyImpact();
+
+    // Call API to save homework marks
+    try {
+      final res = await HomeworkApi.giveMarks(
+        homeworkId: widget.homeworkId,
+        studentId:  widget.studentId,
+        marks:      marks,
+        feedback:   _feedbackCtrl.text.trim(),
+      );
+      if (mounted) setState(() => _isSaving = false);
+      if (res['success'] == true && mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: const Color(0xFF00D4AA),
+          content: Text('✓ ${marks.toInt()} marks given to ${widget.studentName}'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: const Color(0xFFFF6584),
+          content: Text(res['message'] ?? 'Failed to save marks'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+      EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F1623),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(2))),
+            ),
+            const SizedBox(height: 20),
+            Row(children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                    color: widget.color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12)),
+                child: Icon(Icons.star, color: widget.color, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Give Marks',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900)),
+                    Text(widget.studentName,
+                        style: TextStyle(
+                            color: widget.color,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Icon(Icons.close,
+                    color: Colors.white.withOpacity(0.4)),
+              ),
+            ]),
+            const SizedBox(height: 24),
+            // Max marks selector
+            Row(
+              children: [5, 10, 20, 50, 100].map((m) {
+                final sel = _maxMarks == m.toDouble();
+                return GestureDetector(
+                  onTap: () => setState(() => _maxMarks = m.toDouble()),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: sel
+                          ? widget.color.withOpacity(0.2)
+                          : Colors.white.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: sel
+                            ? widget.color.withOpacity(0.5)
+                            : Colors.white.withOpacity(0.08),
+                      ),
+                    ),
+                    child: Text('/$m',
+                        style: TextStyle(
+                            color: sel
+                                ? widget.color
+                                : Colors.white.withOpacity(0.35),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13)),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+            // Marks input
+            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: _marksCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: TextStyle(
+                      color: widget.color,
+                      fontSize: 36,
+                      fontWeight: FontWeight.w900),
+                  textAlign: TextAlign.center,
+                  decoration: InputDecoration(
+                    hintText: '0',
+                    hintStyle: TextStyle(
+                        color: widget.color.withOpacity(0.25),
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900),
+                    filled: true,
+                    fillColor: widget.color.withOpacity(0.07),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide:
+                        BorderSide(color: widget.color, width: 2)),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text('/ ${_maxMarks.toInt()}',
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.3),
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700)),
+              ),
+            ]),
+            const SizedBox(height: 14),
+            // Feedback field
+            TextField(
+              controller: _feedbackCtrl,
+              maxLines: 2,
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 14, height: 1.5),
+              decoration: InputDecoration(
+                hintText: 'Feedback for student (optional)...',
+                hintStyle: TextStyle(
+                    color: Colors.white.withOpacity(0.25), fontSize: 14),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.04),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide:
+                    BorderSide(color: widget.color, width: 1.5)),
+                contentPadding: const EdgeInsets.all(14),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Save button
+            GestureDetector(
+              onTap: _isSaving ? null : _save,
+              child: Container(
+                width: double.infinity,
+                height: 54,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [
+                    widget.color,
+                    widget.color.withOpacity(0.7)
+                  ]),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                        color: widget.color.withOpacity(0.4),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6)),
+                  ],
+                ),
+                child: Center(
+                  child: _isSaving
+                      ? const SizedBox(
+                      width: 22, height: 22,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                      : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.star, color: Colors.white, size: 18),
+                      SizedBox(width: 8),
+                      Text('Save Marks',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

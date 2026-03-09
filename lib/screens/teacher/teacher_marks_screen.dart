@@ -41,24 +41,18 @@ class StudentMark {
     if (percentage >= 50) return const Color(0xFF6C63FF);
     return const Color(0xFFFF6584);
   }
-
-  String get initials => name
-      .split(' ')
-      .map((w) => w.isNotEmpty ? w[0] : '')
-      .take(2)
-      .join()
-      .toUpperCase();
 }
 
 class SubjectInfo {
   final int id;
-  final String name;
-  final String icon;
+  String name;
+  String icon;
   final Color color;
-  final int totalMarks;
+  int totalMarks;
   final int studentCount;
   final double average;
-  final int? classId;
+  int? classId;
+  String className;
 
   SubjectInfo({
     required this.id,
@@ -69,6 +63,7 @@ class SubjectInfo {
     required this.studentCount,
     required this.average,
     this.classId,
+    this.className = '',
   });
 }
 
@@ -102,9 +97,10 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
   List<SubjectInfo> _subjects = [];
   SubjectInfo? _selectedSubject;
   List<StudentMark> _students = [];
+  List<Map<String, dynamic>> _myClasses = [];
   String _searchQuery = '';
   String _sortBy = 'Name';
-  bool _isLoadingSubjects = true;
+  bool _isLoadingSubjects = false;
   bool _isLoadingStudents = false;
 
   @override
@@ -117,9 +113,8 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
     _headerAnim =
         CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOutCubic);
     _headerCtrl.forward();
-    Future.delayed(
-        const Duration(milliseconds: 300), () => _listCtrl.forward());
     _fetchSubjects();
+    _fetchClasses();
   }
 
   @override
@@ -129,49 +124,77 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
     super.dispose();
   }
 
+  Future<void> _fetchClasses() async {
+    try {
+      final res = await TeacherApi.getMyClasses();
+      if (res['success'] == true && mounted) {
+        setState(() {
+          _myClasses =
+          List<Map<String, dynamic>>.from(res['classes'] ?? []);
+        });
+      }
+    } catch (e) {
+      debugPrint('fetchClasses error: $e');
+    }
+  }
+
   Future<void> _fetchSubjects() async {
-    setState(() => _isLoadingSubjects = true);
+    if (_isLoadingSubjects) return;
+    if (mounted) setState(() => _isLoadingSubjects = true);
+
     try {
       final res = await MarksApi.getSubjects();
+      debugPrint('Subjects API: $res');
+
       if (res['success'] == true && mounted) {
         final List raw = res['subjects'] ?? [];
         setState(() {
           _subjects = List.generate(raw.length, (i) {
-            final s = raw[i];
+            final s = raw[i] as Map<String, dynamic>;
             return SubjectInfo(
-              id:           s['id'] as int,
-              name:         s['name'] ?? '',
-              icon:         s['icon'] ?? '📚',
-              color:        _colorFromHex(s['color'], i),
-              totalMarks:   s['total_marks'] as int? ?? 100,
-              studentCount: s['student_count'] as int? ?? 0,
-              average:      (s['average'] as num?)?.toDouble() ?? 0.0,
-              classId:      s['class_id'] as int?,
+              id:           (s['id'] as num).toInt(),
+              name:         s['name']           as String? ?? '',
+              icon:         s['icon']           as String? ?? '📚',
+              color:        _colorFromHex(s['color'] as String?, i),
+              totalMarks:   (s['total_marks']   as num?)?.toInt()    ?? 100,
+              studentCount: (s['student_count'] as num?)?.toInt()    ?? 0,
+              average:      double.tryParse(s['average']?.toString() ?? '0') ?? 0.0,
+              classId:      (s['class_id']      as num?)?.toInt(),
+              className:    s['class_name']     as String?           ?? '',
             );
           });
           _isLoadingSubjects = false;
         });
-        _listCtrl.forward();
+        _listCtrl
+          ..reset()
+          ..forward();
       } else {
+        debugPrint('Subjects failed: ${res['message']}');
         if (mounted) setState(() => _isLoadingSubjects = false);
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('fetchSubjects error: $e');
       if (mounted) setState(() => _isLoadingSubjects = false);
     }
   }
 
   Future<void> _fetchStudents(SubjectInfo subject) async {
-    setState(() {
-      _isLoadingStudents = true;
-      _students = [];
-    });
+    if (mounted) {
+      setState(() {
+        _isLoadingStudents = true;
+        _students = [];
+      });
+    }
     try {
       final res = await MarksApi.getStudentsWithMarks(subject.id);
+      debugPrint('Students API for ${subject.id}: $res');
+
       if (res['success'] == true && mounted) {
         final List raw = res['students'] ?? [];
         setState(() {
           _students = raw.map((s) {
-            final name = s['name'] ?? '';
+            final m    = s as Map<String, dynamic>;
+            final name = m['name'] as String? ?? '';
             final initials = name
                 .split(' ')
                 .map<String>((w) => w.isNotEmpty ? w[0] : '')
@@ -179,13 +202,13 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                 .join()
                 .toUpperCase();
             return StudentMark(
-              id:         s['id'] as int,
+              id:         (m['id'] as num).toInt(),
               name:       name,
-              username:   s['username'] ?? '',
+              username:   m['username']        as String? ?? '',
               avatar:     initials.isEmpty ? '?' : initials,
-              marks:      s['marks_obtained'] as int? ?? 0,
-              totalMarks: res['totalMarks'] as int? ?? subject.totalMarks,
-              examType:   s['exam_type'] ?? 'Unit Test',
+              marks:      (m['marks_obtained'] as num?)?.toInt() ?? 0,
+              totalMarks: (res['totalMarks']   as num?)?.toInt() ?? subject.totalMarks,
+              examType:   m['exam_type']       as String?        ?? 'Unit Test',
             );
           }).toList();
           _isLoadingStudents = false;
@@ -194,15 +217,17 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
           ..reset()
           ..forward();
       } else {
+        debugPrint('Students failed: ${res['message']}');
         if (mounted) setState(() => _isLoadingStudents = false);
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('fetchStudents error: $e');
       if (mounted) setState(() => _isLoadingStudents = false);
     }
   }
 
-  Future<void> _saveMarks(StudentMark student, int newMark,
-      SubjectInfo subject) async {
+  Future<void> _saveMarks(
+      StudentMark student, int newMark, SubjectInfo subject) async {
     final res = await MarksApi.updateMark(
       studentId: student.id,
       subjectId: subject.id,
@@ -221,30 +246,68 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
     }
   }
 
-  Future<void> _confirmDeleteSubject(SubjectInfo subject) async {
+  // ✅ NEW: Delete student mark
+  Future<void> _deleteMark(StudentMark student, SubjectInfo subject) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF131929),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Delete Subject?',
+        title: const Text('Delete Marks?',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-        content: Text(
-          'Delete "${subject.name}"? All marks will be lost.',
-          style: const TextStyle(color: Colors.white60, fontSize: 14),
-        ),
+        content: Text('Delete ${student.name}\'s marks for ${subject.name}?',
+            style: const TextStyle(color: Colors.white60, fontSize: 14)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel',
-                style: TextStyle(color: Colors.white54)),
-          ),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete',
-                style: TextStyle(
-                    color: Color(0xFFFF6584), fontWeight: FontWeight.w700)),
-          ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete',
+                  style: TextStyle(color: Color(0xFFFF6584), fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final res = await MarksApi.deleteMark(
+      studentId: student.id,
+      subjectId: subject.id,
+    );
+    if (res['success'] == true && mounted) {
+      setState(() {
+        student.marks    = 0;
+        student.isEdited = false;
+      });
+      _showSnack('${student.name}\'s marks deleted', const Color(0xFFFF6584));
+    } else if (mounted) {
+      _showSnack(res['message'] ?? 'Delete failed', const Color(0xFFFF6584));
+    }
+  }
+
+  Future<void> _confirmDeleteSubject(SubjectInfo subject) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF131929),
+        shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Subject?',
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.w800)),
+        content: Text('Delete "${subject.name}"? All marks will be lost.',
+            style: const TextStyle(color: Colors.white60, fontSize: 14)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel',
+                  style: TextStyle(color: Colors.white54))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete',
+                  style: TextStyle(
+                      color: Color(0xFFFF6584),
+                      fontWeight: FontWeight.w700))),
         ],
       ),
     );
@@ -266,7 +329,8 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
       content: Text(msg),
       backgroundColor: color,
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape:
+      RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ));
   }
 
@@ -282,7 +346,6 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
       return s.name.toLowerCase().contains(q) ||
           s.username.toLowerCase().contains(q);
     }).toList();
-
     switch (_sortBy) {
       case 'Marks ↑':
         list.sort((a, b) => a.marks.compareTo(b.marks));
@@ -368,17 +431,15 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                           colors: [Color(0xFFFFB347), Color(0xFFFF6584)]),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.add, color: Colors.white, size: 16),
-                        SizedBox(width: 4),
-                        Text('New Subject',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700)),
-                      ],
-                    ),
+                    child: const Row(children: [
+                      Icon(Icons.add, color: Colors.white, size: 16),
+                      SizedBox(width: 4),
+                      Text('New Subject',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700)),
+                    ]),
                   ),
                 ),
               ],
@@ -392,40 +453,45 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                     color: Color(0xFFFFB347)))
                 : _subjects.isEmpty
                 ? _buildEmptySubjects()
-                : GridView.builder(
-              padding:
-              const EdgeInsets.fromLTRB(20, 0, 20, 30),
-              gridDelegate:
-              const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount:   2,
-                crossAxisSpacing: 14,
-                mainAxisSpacing:  14,
-                childAspectRatio: 1.05,
+                : RefreshIndicator(
+              onRefresh: _fetchSubjects,
+              color: const Color(0xFFFFB347),
+              backgroundColor: const Color(0xFF131929),
+              child: GridView.builder(
+                padding:
+                const EdgeInsets.fromLTRB(20, 0, 20, 30),
+                gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount:   2,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing:  14,
+                  childAspectRatio: 1.0,
+                ),
+                itemCount: _subjects.length,
+                itemBuilder: (context, i) {
+                  final delay = i * 0.1;
+                  return AnimatedBuilder(
+                    animation: _listCtrl,
+                    builder: (context, child) {
+                      final v = math.max(
+                          0.0,
+                          math.min(
+                              1.0,
+                              (_listCtrl.value - delay) /
+                                  (1.0 - delay)));
+                      final curve = Curves.easeOutBack
+                          .transform(v.clamp(0.0, 1.0));
+                      return Opacity(
+                        opacity: v.clamp(0.0, 1.0),
+                        child: Transform.scale(
+                            scale: 0.85 + (0.15 * curve),
+                            child: child),
+                      );
+                    },
+                    child: _buildSubjectCard(_subjects[i]),
+                  );
+                },
               ),
-              itemCount: _subjects.length,
-              itemBuilder: (context, i) {
-                final delay = i * 0.1;
-                return AnimatedBuilder(
-                  animation: _listCtrl,
-                  builder: (context, child) {
-                    final v = math.max(
-                        0.0,
-                        math.min(
-                            1.0,
-                            (_listCtrl.value - delay) /
-                                (1.0 - delay)));
-                    final curve = Curves.easeOutBack
-                        .transform(v.clamp(0.0, 1.0));
-                    return Opacity(
-                      opacity: v.clamp(0.0, 1.0),
-                      child: Transform.scale(
-                          scale: 0.85 + (0.15 * curve),
-                          child: child),
-                    );
-                  },
-                  child: _buildSubjectCard(_subjects[i]),
-                );
-              },
             ),
           ),
         ],
@@ -449,6 +515,24 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
           Text('Tap "New Subject" to create one',
               style: TextStyle(
                   color: Colors.white.withOpacity(0.4), fontSize: 13)),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: _fetchSubjects,
+            child: Container(
+              padding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFB347).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: const Color(0xFFFFB347).withOpacity(0.4)),
+              ),
+              child: const Text('Retry',
+                  style: TextStyle(
+                      color: Color(0xFFFFB347),
+                      fontWeight: FontWeight.w700)),
+            ),
+          ),
         ],
       ),
     );
@@ -473,21 +557,19 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
             const Color(0xFFFF6584).withOpacity(0.08)
           ]),
           borderRadius: BorderRadius.circular(20),
-          border:
-          Border.all(color: const Color(0xFFFFB347).withOpacity(0.25)),
+          border: Border.all(
+              color: const Color(0xFFFFB347).withOpacity(0.25)),
         ),
-        child: Row(
-          children: [
-            _overallStat('${_subjects.length}', 'Subjects',
-                const Color(0xFFFFB347)),
-            _vDivider(),
-            _overallStat('$totalStudents', 'Students',
-                const Color(0xFFFF6584)),
-            _vDivider(),
-            _overallStat('${avgScore.toStringAsFixed(0)}%', 'Avg Score',
-                const Color(0xFF00D4AA)),
-          ],
-        ),
+        child: Row(children: [
+          _overallStat('${_subjects.length}', 'Subjects',
+              const Color(0xFFFFB347)),
+          _vDivider(),
+          _overallStat(
+              '$totalStudents', 'Students', const Color(0xFFFF6584)),
+          _vDivider(),
+          _overallStat('${avgScore.toStringAsFixed(0)}%', 'Avg Score',
+              const Color(0xFF00D4AA)),
+        ]),
       ),
     );
   }
@@ -497,22 +579,20 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
 
   Widget _overallStat(String val, String label, Color color) {
     return Expanded(
-      child: Column(
-        children: [
-          Text(val,
-              style: TextStyle(
-                  color: color,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5)),
-          const SizedBox(height: 2),
-          Text(label,
-              style: TextStyle(
-                  color: Colors.white.withOpacity(0.4),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600)),
-        ],
-      ),
+      child: Column(children: [
+        Text(val,
+            style: TextStyle(
+                color: color,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5)),
+        const SizedBox(height: 2),
+        Text(label,
+            style: TextStyle(
+                color: Colors.white.withOpacity(0.4),
+                fontSize: 10,
+                fontWeight: FontWeight.w600)),
+      ]),
     );
   }
 
@@ -534,32 +614,50 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
         child: Stack(
           children: [
             Positioned(
-              right: -20,
-              top: -20,
+              right: -20, top: -20,
               child: Container(
-                width: 90,
-                height: 90,
+                width: 90, height: 90,
                 decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: subject.color.withOpacity(0.08)),
               ),
             ),
+            // ✅ Top-right action buttons (edit + delete)
             Positioned(
-              top: 8,
-              right: 8,
-              child: GestureDetector(
-                onTap: () => _confirmDeleteSubject(subject),
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF6584).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                        color: const Color(0xFFFF6584).withOpacity(0.3)),
+              top: 6, right: 6,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Edit button
+                  GestureDetector(
+                    onTap: () => _showEditSubjectSheet(subject),
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: subject.color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(7),
+                        border: Border.all(color: subject.color.withOpacity(0.3)),
+                      ),
+                      child: Icon(Icons.edit_outlined, color: subject.color, size: 13),
+                    ),
                   ),
-                  child: const Icon(Icons.delete_outline,
-                      color: Color(0xFFFF6584), size: 14),
-                ),
+                  const SizedBox(width: 4),
+                  // Delete button
+                  GestureDetector(
+                    onTap: () => _confirmDeleteSubject(subject),
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF6584).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(7),
+                        border: Border.all(
+                            color: const Color(0xFFFF6584).withOpacity(0.3)),
+                      ),
+                      child: const Icon(Icons.delete_outline,
+                          color: Color(0xFFFF6584), size: 13),
+                    ),
+                  ),
+                ],
               ),
             ),
             Padding(
@@ -567,39 +665,46 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                            color: subject.color.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12)),
-                        child: Center(
-                            child: Text(subject.icon,
-                                style: const TextStyle(fontSize: 22))),
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                            color: subject.color.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(20)),
-                        child: Text('${subject.studentCount}',
-                            style: TextStyle(
-                                color: subject.color,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800)),
-                      ),
-                    ],
-                  ),
+                  Row(children: [
+                    Container(
+                      width: 44, height: 44,
+                      decoration: BoxDecoration(
+                          color: subject.color.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Center(
+                          child: Text(subject.icon,
+                              style: const TextStyle(fontSize: 22))),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                          color: subject.color.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(20)),
+                      child: Text('${subject.studentCount}',
+                          style: TextStyle(
+                              color: subject.color,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                  ]),
                   const Spacer(),
                   Text(subject.name,
                       style: const TextStyle(
                           color: Colors.white,
                           fontSize: 15,
-                          fontWeight: FontWeight.w800)),
+                          fontWeight: FontWeight.w800),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 2),
+                  if (subject.className.isNotEmpty)
+                    Text(subject.className,
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.4),
+                            fontSize: 10),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 4),
                   Text(
                       'Avg: ${subject.average > 0 ? subject.average.toStringAsFixed(1) : "—"}',
@@ -643,10 +748,46 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
         else if (students.isEmpty)
           Expanded(
             child: Center(
-              child: Text('No students found',
-                  style: TextStyle(
-                      color: Colors.white.withOpacity(0.4),
-                      fontSize: 15)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('👥', style: TextStyle(fontSize: 40)),
+                  const SizedBox(height: 12),
+                  Text('No students found',
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Text(
+                    subject.classId != null
+                        ? 'No students enrolled in this class'
+                        : 'No students available',
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.35),
+                        fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: () => _fetchStudents(subject),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: subject.color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: subject.color.withOpacity(0.4)),
+                      ),
+                      child: Text('Retry',
+                          style: TextStyle(
+                              color: subject.color,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
             ),
           )
         else
@@ -669,8 +810,8 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                               1.0,
                               (_listCtrl.value - delay) /
                                   (1.0 - delay)));
-                      final curve =
-                      Curves.easeOutCubic.transform(v.clamp(0.0, 1.0));
+                      final curve = Curves.easeOutCubic
+                          .transform(v.clamp(0.0, 1.0));
                       return Opacity(
                         opacity: v.clamp(0.0, 1.0),
                         child: Transform.translate(
@@ -706,38 +847,36 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: subject.color.withOpacity(0.25)),
       ),
-      child: Row(
-        children: [
-          Text(subject.icon, style: const TextStyle(fontSize: 28)),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(subject.name,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16)),
-              Text('Total: ${subject.totalMarks} marks',
-                  style: TextStyle(
-                      color: Colors.white.withOpacity(0.45), fontSize: 12)),
-            ],
-          ),
-          const Spacer(),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _miniStat('Avg', avg.toStringAsFixed(1), subject.color),
-              const SizedBox(height: 4),
-              Row(children: [
-                _miniStat('H', '$highest', const Color(0xFF00D4AA)),
-                const SizedBox(width: 8),
-                _miniStat('L', '$lowest', const Color(0xFFFF6584)),
-              ]),
-            ],
-          ),
-        ],
-      ),
+      child: Row(children: [
+        Text(subject.icon, style: const TextStyle(fontSize: 28)),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(subject.name,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16)),
+            Text('Total: ${subject.totalMarks} marks',
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.45), fontSize: 12)),
+          ],
+        ),
+        const Spacer(),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _miniStat('Avg', avg.toStringAsFixed(1), subject.color),
+            const SizedBox(height: 4),
+            Row(children: [
+              _miniStat('H', '$highest', const Color(0xFF00D4AA)),
+              const SizedBox(width: 8),
+              _miniStat('L', '$lowest', const Color(0xFFFF6584)),
+            ]),
+          ],
+        ),
+      ]),
     );
   }
 
@@ -755,56 +894,54 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
   Widget _buildSearchAndSort() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              height: 42,
-              decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border:
-                  Border.all(color: Colors.white.withOpacity(0.08))),
-              child: TextField(
-                onChanged: (v) => setState(() => _searchQuery = v),
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Search student...',
-                  hintStyle: TextStyle(
-                      color: Colors.white.withOpacity(0.25), fontSize: 14),
-                  prefixIcon: Icon(Icons.search,
-                      color: Colors.white.withOpacity(0.3), size: 18),
-                  border: InputBorder.none,
-                  contentPadding:
-                  const EdgeInsets.symmetric(vertical: 12),
-                ),
+      child: Row(children: [
+        Expanded(
+          child: Container(
+            height: 42,
+            decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border:
+                Border.all(color: Colors.white.withOpacity(0.08))),
+            child: TextField(
+              onChanged: (v) => setState(() => _searchQuery = v),
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Search student...',
+                hintStyle: TextStyle(
+                    color: Colors.white.withOpacity(0.25), fontSize: 14),
+                prefixIcon: Icon(Icons.search,
+                    color: Colors.white.withOpacity(0.3), size: 18),
+                border: InputBorder.none,
+                contentPadding:
+                const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
           ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: _showSortSheet,
-            child: Container(
-              height: 42,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border:
-                  Border.all(color: Colors.white.withOpacity(0.08))),
-              child: Row(children: [
-                Icon(Icons.sort,
-                    color: Colors.white.withOpacity(0.5), size: 18),
-                const SizedBox(width: 6),
-                Text(_sortBy,
-                    style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
-                        fontSize: 12)),
-              ]),
-            ),
+        ),
+        const SizedBox(width: 10),
+        GestureDetector(
+          onTap: _showSortSheet,
+          child: Container(
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border:
+                Border.all(color: Colors.white.withOpacity(0.08))),
+            child: Row(children: [
+              Icon(Icons.sort,
+                  color: Colors.white.withOpacity(0.5), size: 18),
+              const SizedBox(width: 6),
+              Text(_sortBy,
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.6),
+                      fontSize: 12)),
+            ]),
           ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 
@@ -828,102 +965,111 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
             width: student.isEdited ? 1.5 : 1,
           ),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                  color: subject.color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12)),
-              child: Center(
-                child: Text(student.avatar,
-                    style: TextStyle(
-                        color: subject.color,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 13)),
-              ),
+        child: Row(children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+                color: subject.color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12)),
+            child: Center(
+              child: Text(student.avatar,
+                  style: TextStyle(
+                      color: subject.color,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13)),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Flexible(
-                      child: Text(student.name,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700),
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                    if (student.isEdited) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                            color: subject.color.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(6)),
-                        child: Text('Edited',
-                            style: TextStyle(
-                                color: subject.color,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800)),
-                      ),
-                    ],
-                  ]),
-                  Text(student.username,
-                      style: TextStyle(
-                          color: Colors.white.withOpacity(0.35),
-                          fontSize: 12)),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                RichText(
-                  text: TextSpan(children: [
-                    TextSpan(
+                Row(children: [
+                  Flexible(
+                    child: Text(student.name,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  if (student.isEdited) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                          color: subject.color.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(6)),
+                      child: Text('Edited',
+                          style: TextStyle(
+                              color: subject.color,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                  ],
+                ]),
+                Text(student.username,
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.35),
+                        fontSize: 12)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              RichText(
+                text: TextSpan(children: [
+                  TextSpan(
                       text: '${student.marks}',
                       style: TextStyle(
                           color: student.gradeColor,
                           fontSize: 20,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: -0.5),
-                    ),
-                    TextSpan(
+                          letterSpacing: -0.5)),
+                  TextSpan(
                       text: '/${student.totalMarks}',
                       style: TextStyle(
                           color: Colors.white.withOpacity(0.3),
-                          fontSize: 12),
-                    ),
-                  ]),
-                ),
-                const SizedBox(height: 2),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                      color: student.gradeColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: student.gradeColor.withOpacity(0.3))),
-                  child: Text(student.grade,
-                      style: TextStyle(
-                          color: student.gradeColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900)),
-                ),
-              ],
-            ),
-            const SizedBox(width: 10),
-            Icon(Icons.edit_outlined,
-                color: Colors.white.withOpacity(0.2), size: 18),
-          ],
-        ),
+                          fontSize: 12)),
+                ]),
+              ),
+              const SizedBox(height: 2),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                    color: student.gradeColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: student.gradeColor.withOpacity(0.3))),
+                child: Text(student.grade,
+                    style: TextStyle(
+                        color: student.gradeColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900)),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+          // ✅ Action buttons: edit + delete
+          Column(
+            children: [
+              GestureDetector(
+                onTap: () => _showEditMarksSheet(student, subject),
+                child: Icon(Icons.edit_outlined,
+                    color: Colors.white.withOpacity(0.35), size: 18),
+              ),
+              const SizedBox(height: 6),
+              GestureDetector(
+                onTap: () => _deleteMark(student, subject),
+                child: Icon(Icons.delete_outline,
+                    color: const Color(0xFFFF6584).withOpacity(0.5), size: 18),
+              ),
+            ],
+          ),
+        ]),
       ),
     );
   }
@@ -939,68 +1085,87 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
   Widget _buildTopBar({required bool showBack}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Row(
-        children: [
+      child: Row(children: [
+        GestureDetector(
+          onTap: () {
+            if (showBack) {
+              setState(() {
+                _selectedSubject = null;
+                _students        = [];
+                _searchQuery     = '';
+                _listCtrl.reset();
+                _listCtrl.forward();
+              });
+            } else {
+              Navigator.pop(context);
+            }
+          },
+          child: Container(
+            width: 42, height: 42,
+            decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.07),
+                borderRadius: BorderRadius.circular(12),
+                border:
+                Border.all(color: Colors.white.withOpacity(0.1))),
+            child: const Icon(Icons.arrow_back_ios_new,
+                color: Colors.white, size: 16),
+          ),
+        ),
+        const Spacer(),
+        if (!showBack)
           GestureDetector(
-            onTap: () {
-              if (showBack) {
-                setState(() {
-                  _selectedSubject = null;
-                  _students        = [];
-                  _searchQuery     = '';
-                  _listCtrl.reset();
-                  _listCtrl.forward();
-                });
-              } else {
-                Navigator.pop(context);
-              }
-            },
+            onTap: _fetchSubjects,
             child: Container(
-              width: 42,
-              height: 42,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.07),
+                  color: Colors.white.withOpacity(0.06),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                       color: Colors.white.withOpacity(0.1))),
-              child: const Icon(Icons.arrow_back_ios_new,
-                  color: Colors.white, size: 16),
+              child: Row(children: [
+                Icon(Icons.refresh,
+                    color: Colors.white.withOpacity(0.6), size: 16),
+                const SizedBox(width: 6),
+                Text('Refresh',
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.6),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600)),
+              ]),
             ),
           ),
-          const Spacer(),
-          if (showBack && _selectedSubject != null)
-            GestureDetector(
-              onTap: () => _fetchStudents(_selectedSubject!),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.06),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: Colors.white.withOpacity(0.1))),
-                child: Row(children: [
-                  Icon(Icons.refresh,
-                      color: Colors.white.withOpacity(0.6), size: 16),
-                  const SizedBox(width: 6),
-                  Text('Refresh',
-                      style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
-                ]),
-              ),
+        if (showBack && _selectedSubject != null)
+          GestureDetector(
+            onTap: () => _fetchStudents(_selectedSubject!),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: Colors.white.withOpacity(0.1))),
+              child: Row(children: [
+                Icon(Icons.refresh,
+                    color: Colors.white.withOpacity(0.6), size: 16),
+                const SizedBox(width: 6),
+                Text('Refresh',
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.6),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600)),
+              ]),
             ),
-        ],
-      ),
+          ),
+      ]),
     );
   }
 
   void _showEditMarksSheet(StudentMark student, SubjectInfo subject) {
     HapticFeedback.lightImpact();
-    final controller =
-    TextEditingController(text: '${student.marks}');
-    bool isSaving = false;
+    final controller = TextEditingController(text: '${student.marks}');
+    bool isSaving    = false;
 
     showModalBottomSheet(
       context: context,
@@ -1020,16 +1185,14 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                    width: 40,
-                    height: 4,
+                    width: 40, height: 4,
                     decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(2))),
                 const SizedBox(height: 20),
                 Row(children: [
                   Container(
-                    width: 50,
-                    height: 50,
+                    width: 50, height: 50,
                     decoration: BoxDecoration(
                         color: subject.color.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(14)),
@@ -1041,20 +1204,23 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                                 fontSize: 16))),
                   ),
                   const SizedBox(width: 14),
-                  Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(student.name,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800)),
-                        Text(
-                            '${student.username}  •  ${subject.name}',
-                            style: TextStyle(
-                                color: Colors.white.withOpacity(0.4),
-                                fontSize: 13)),
-                      ]),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(student.name,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800)),
+                          Text(
+                              '${student.username}  •  ${subject.name}',
+                              style: TextStyle(
+                                  color: Colors.white.withOpacity(0.4),
+                                  fontSize: 13),
+                              overflow: TextOverflow.ellipsis),
+                        ]),
+                  ),
                 ]),
                 const SizedBox(height: 24),
                 Container(
@@ -1069,8 +1235,7 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                           style: TextStyle(
                               color: Colors.white.withOpacity(0.5),
                               fontSize: 13)),
-                      Text(
-                          '${student.marks} / ${student.totalMarks}',
+                      Text('${student.marks} / ${student.totalMarks}',
                           style: TextStyle(
                               color: student.gradeColor,
                               fontWeight: FontWeight.w800,
@@ -1168,8 +1333,7 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                         child: Center(
                           child: isSaving
                               ? const SizedBox(
-                              width: 20,
-                              height: 20,
+                              width: 20, height: 20,
                               child: CircularProgressIndicator(
                                   color: Colors.white,
                                   strokeWidth: 2))
@@ -1200,11 +1364,14 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
     );
   }
 
-  void _showCreateSubjectSheet() {
-    final nameCtrl  = TextEditingController();
-    final marksCtrl = TextEditingController(text: '100');
-    String icon     = '📚';
-    bool   isSaving = false;
+  // ✅ NEW: Edit subject sheet
+  void _showEditSubjectSheet(SubjectInfo subject) {
+    HapticFeedback.lightImpact();
+    final nameCtrl  = TextEditingController(text: subject.name);
+    final marksCtrl = TextEditingController(text: '${subject.totalMarks}');
+    String icon        = subject.icon;
+    int?   selectedCId = subject.classId;
+    bool   isSaving    = false;
 
     final icons = ['📚', '📐', '🔬', '📖', '🌍', '💻', '✍️', '🎨', '🏃', '🎵'];
 
@@ -1222,127 +1389,433 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
                 borderRadius:
                 BorderRadius.vertical(top: Radius.circular(28))),
             padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                    child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(2)))),
-                const SizedBox(height: 20),
-                ShaderMask(
-                  shaderCallback: (b) => const LinearGradient(
-                      colors: [Color(0xFFFFB347), Color(0xFFFF6584)])
-                      .createShader(b),
-                  child: const Text('New Subject',
-                      style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white)),
-                ),
-                const SizedBox(height: 20),
-                _glowField(nameCtrl, 'Subject Name', Icons.subject),
-                const SizedBox(height: 12),
-                _glowField(marksCtrl, 'Total Marks', Icons.star_outline,
-                    keyboardType: TextInputType.number),
-                const SizedBox(height: 16),
-                Text('ICON',
-                    style: TextStyle(
-                        color: Colors.white.withOpacity(0.4),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2)),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  children: icons.map((ic) {
-                    final sel = ic == icon;
-                    return GestureDetector(
-                      onTap: () => setSheet(() => icon = ic),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
                       child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: sel
-                              ? const Color(0xFFFFB347).withOpacity(0.2)
-                              : Colors.white.withOpacity(0.06),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color: sel
-                                  ? const Color(0xFFFFB347)
-                                  : Colors.transparent),
-                        ),
-                        child: Center(
-                            child: Text(ic,
-                                style: const TextStyle(fontSize: 22))),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 24),
-                GestureDetector(
-                  onTap: isSaving
-                      ? null
-                      : () async {
-                    if (nameCtrl.text.trim().isEmpty) {
-                      _showSnack('Subject name required!',
-                          const Color(0xFFFF6584));
-                      return;
-                    }
-                    setSheet(() => isSaving = true);
-                    final res = await MarksApi.createSubject(
-                      name:       nameCtrl.text.trim(),
-                      icon:       icon,
-                      totalMarks: int.tryParse(
-                          marksCtrl.text.trim()) ??
-                          100,
-                    );
-                    if (res['success'] == true) {
-                      Navigator.pop(ctx);
-                      _showSnack('Subject created! ✅',
-                          const Color(0xFF00D4AA));
-                      _fetchSubjects();
-                    } else {
-                      setSheet(() => isSaving = false);
-                      _showSnack(res['message'] ?? 'Failed',
-                          const Color(0xFFFF6584));
-                    }
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    height: 52,
+                          width: 40, height: 4,
+                          decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(2)))),
+                  const SizedBox(height: 20),
+                  ShaderMask(
+                    shaderCallback: (b) => const LinearGradient(
+                        colors: [Color(0xFFFFB347), Color(0xFFFF6584)])
+                        .createShader(b),
+                    child: const Text('Edit Subject',
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white)),
+                  ),
+                  const SizedBox(height: 20),
+                  _glowField(nameCtrl, 'Subject Name', Icons.subject),
+                  const SizedBox(height: 12),
+                  _glowField(marksCtrl, 'Total Marks', Icons.star_outline,
+                      keyboardType: TextInputType.number),
+                  const SizedBox(height: 16),
+                  Text('CLASS (Optional)',
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.4),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 4),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                          colors: [Color(0xFFFFB347), Color(0xFFFF6584)]),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Center(
-                      child: isSaving
-                          ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
-                          : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text('Create Subject',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 15)),
+                        color: Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: Colors.white.withOpacity(0.1))),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int?>(
+                        value: selectedCId,
+                        isExpanded: true,
+                        dropdownColor: const Color(0xFF1A2235),
+                        icon: Icon(Icons.keyboard_arrow_down,
+                            color: Colors.white.withOpacity(0.4)),
+                        hint: Text('Select class',
+                            style: TextStyle(
+                                color: Colors.white.withOpacity(0.3),
+                                fontSize: 14)),
+                        items: [
+                          DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text('No class',
+                                style: TextStyle(
+                                    color: Colors.white.withOpacity(0.5),
+                                    fontSize: 14)),
+                          ),
+                          ..._myClasses.map((c) => DropdownMenuItem<int?>(
+                            value: (c['id'] as num?)?.toInt(),
+                            child: Row(children: [
+                              Text(c['icon'] as String? ?? '📚',
+                                  style: const TextStyle(fontSize: 16)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                    c['name'] as String? ?? '',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14),
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                            ]),
+                          )),
                         ],
+                        onChanged: (v) => setSheet(() => selectedCId = v),
                       ),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  Text('ICON',
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.4),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2)),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: icons.map((ic) {
+                      final sel = ic == icon;
+                      return GestureDetector(
+                        onTap: () => setSheet(() => icon = ic),
+                        child: Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(
+                            color: sel
+                                ? const Color(0xFFFFB347).withOpacity(0.2)
+                                : Colors.white.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: sel
+                                    ? const Color(0xFFFFB347)
+                                    : Colors.transparent),
+                          ),
+                          child: Center(
+                              child: Text(ic,
+                                  style: const TextStyle(fontSize: 22))),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+                  GestureDetector(
+                    onTap: isSaving
+                        ? null
+                        : () async {
+                      if (nameCtrl.text.trim().isEmpty) {
+                        _showSnack('Subject name required!',
+                            const Color(0xFFFF6584));
+                        return;
+                      }
+                      setSheet(() => isSaving = true);
+                      final totalMarks =
+                          int.tryParse(marksCtrl.text.trim()) ?? 100;
+                      final res = await MarksApi.updateSubject(
+                        subjectId:  subject.id,
+                        name:       nameCtrl.text.trim(),
+                        icon:       icon,
+                        totalMarks: totalMarks,
+                        classId:    selectedCId,
+                      );
+                      if (res['success'] == true && mounted) {
+                        final selectedClassName = selectedCId != null
+                            ? (_myClasses.firstWhere(
+                                (c) => (c['id'] as num?)?.toInt() == selectedCId,
+                            orElse: () => {'name': ''})['name'] as String? ?? '')
+                            : '';
+                        Navigator.pop(ctx);
+                        setState(() {
+                          subject.name      = nameCtrl.text.trim();
+                          subject.icon      = icon;
+                          subject.totalMarks = totalMarks;
+                          subject.classId   = selectedCId;
+                          subject.className = selectedClassName;
+                        });
+                        _showSnack('Subject updated! ✅', const Color(0xFF00D4AA));
+                      } else {
+                        setSheet(() => isSaving = false);
+                        _showSnack(res['message'] ?? 'Failed',
+                            const Color(0xFFFF6584));
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                            colors: [Color(0xFFFFB347), Color(0xFFFF6584)]),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Center(
+                        child: isSaving
+                            ? const SizedBox(
+                            width: 20, height: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                            : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.save_outlined, color: Colors.white),
+                            SizedBox(width: 8),
+                            Text('Save Changes',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCreateSubjectSheet() {
+    final nameCtrl  = TextEditingController();
+    final marksCtrl = TextEditingController(text: '100');
+    String icon        = '📚';
+    int?   selectedCId;
+    bool   isSaving    = false;
+
+    final icons = ['📚', '📐', '🔬', '📖', '🌍', '💻', '✍️', '🎨', '🏃', '🎵'];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            decoration: const BoxDecoration(
+                color: Color(0xFF131929),
+                borderRadius:
+                BorderRadius.vertical(top: Radius.circular(28))),
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                      child: Container(
+                          width: 40, height: 4,
+                          decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(2)))),
+                  const SizedBox(height: 20),
+                  ShaderMask(
+                    shaderCallback: (b) => const LinearGradient(
+                        colors: [Color(0xFFFFB347), Color(0xFFFF6584)])
+                        .createShader(b),
+                    child: const Text('New Subject',
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white)),
+                  ),
+                  const SizedBox(height: 20),
+                  _glowField(nameCtrl, 'Subject Name', Icons.subject),
+                  const SizedBox(height: 12),
+                  _glowField(marksCtrl, 'Total Marks', Icons.star_outline,
+                      keyboardType: TextInputType.number),
+                  const SizedBox(height: 16),
+                  Text('CLASS (Optional)',
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.4),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 4),
+                    decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: Colors.white.withOpacity(0.1))),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int?>(
+                        value: selectedCId,
+                        isExpanded: true,
+                        dropdownColor: const Color(0xFF1A2235),
+                        icon: Icon(Icons.keyboard_arrow_down,
+                            color: Colors.white.withOpacity(0.4)),
+                        hint: Text('Select class',
+                            style: TextStyle(
+                                color: Colors.white.withOpacity(0.3),
+                                fontSize: 14)),
+                        items: [
+                          DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text('No class',
+                                style: TextStyle(
+                                    color: Colors.white.withOpacity(0.5),
+                                    fontSize: 14)),
+                          ),
+                          ..._myClasses.map((c) => DropdownMenuItem<int?>(
+                            value: (c['id'] as num?)?.toInt(),
+                            child: Row(children: [
+                              Text(c['icon'] as String? ?? '📚',
+                                  style: const TextStyle(fontSize: 16)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                    c['name'] as String? ?? '',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14),
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                            ]),
+                          )),
+                        ],
+                        onChanged: (v) => setSheet(() => selectedCId = v),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('ICON',
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.4),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2)),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: icons.map((ic) {
+                      final sel = ic == icon;
+                      return GestureDetector(
+                        onTap: () => setSheet(() => icon = ic),
+                        child: Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(
+                            color: sel
+                                ? const Color(0xFFFFB347).withOpacity(0.2)
+                                : Colors.white.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: sel
+                                    ? const Color(0xFFFFB347)
+                                    : Colors.transparent),
+                          ),
+                          child: Center(
+                              child: Text(ic,
+                                  style: const TextStyle(fontSize: 22))),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+                  GestureDetector(
+                    onTap: isSaving
+                        ? null
+                        : () async {
+                      if (nameCtrl.text.trim().isEmpty) {
+                        _showSnack('Subject name required!',
+                            const Color(0xFFFF6584));
+                        return;
+                      }
+                      setSheet(() => isSaving = true);
+                      final totalMarks =
+                          int.tryParse(marksCtrl.text.trim()) ?? 100;
+                      final res = await MarksApi.createSubject(
+                        name:       nameCtrl.text.trim(),
+                        icon:       icon,
+                        totalMarks: totalMarks,
+                        classId:    selectedCId,
+                      );
+                      if (res['success'] == true && mounted) {
+                        final newColor = _kColors[
+                        _subjects.length % _kColors.length];
+                        final selectedClassName = selectedCId != null
+                            ? (_myClasses.firstWhere(
+                                (c) =>
+                            (c['id'] as num?)?.toInt() ==
+                                selectedCId,
+                            orElse: () =>
+                            {'name': ''})['name']
+                        as String? ??
+                            '')
+                            : '';
+                        Navigator.pop(ctx);
+                        setState(() {
+                          _subjects.add(SubjectInfo(
+                            id: (res['subjectId'] as num?)
+                                ?.toInt() ??
+                                DateTime.now()
+                                    .millisecondsSinceEpoch,
+                            name:         nameCtrl.text.trim(),
+                            icon:         icon,
+                            color:        newColor,
+                            totalMarks:   totalMarks,
+                            studentCount: 0,
+                            average:      0,
+                            classId:      selectedCId,
+                            className:    selectedClassName,
+                          ));
+                        });
+                        _listCtrl
+                          ..reset()
+                          ..forward();
+                        _showSnack('Subject created! ✅',
+                            const Color(0xFF00D4AA));
+                      } else {
+                        setSheet(() => isSaving = false);
+                        _showSnack(res['message'] ?? 'Failed',
+                            const Color(0xFFFF6584));
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                            colors: [Color(0xFFFFB347), Color(0xFFFF6584)]),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Center(
+                        child: isSaving
+                            ? const SizedBox(
+                            width: 20, height: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                            : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add, color: Colors.white),
+                            SizedBox(width: 8),
+                            Text('Create Subject',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1391,8 +1864,7 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-                width: 40,
-                height: 4,
+                width: 40, height: 4,
                 decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(2))),

@@ -368,7 +368,13 @@ class _StudentQuizScreenState extends State<StudentQuizScreen>
 
   void _viewResult(Map<String, dynamic> quiz) {
     HapticFeedback.lightImpact();
-    Navigator.push(context, PageRouteBuilder(pageBuilder: (_, animation, __) => FadeTransition(opacity: animation, child: QuizResultScreen(quiz: quiz)), transitionDuration: const Duration(milliseconds: 400)));
+    Navigator.push(context, PageRouteBuilder(
+      pageBuilder: (_, animation, __) => FadeTransition(
+        opacity: animation,
+        child: QuizResultScreen(quiz: quiz),
+      ),
+      transitionDuration: const Duration(milliseconds: 400),
+    ));
   }
 }
 
@@ -500,9 +506,11 @@ class _QuizAttemptScreenState extends State<QuizAttemptScreen> with TickerProvid
     try {
       final res = await QuizApi.submitQuiz(quizId: widget.quiz['id'] as int, answers: apiAnswers, cheated: _cheated);
       if (res['success'] == true && mounted) {
-        final review = res['review'] as List? ?? [];
+        final List reviewRaw = res['review'] is List ? res['review'] : [];
         final correctMap = <int, String>{};
-        for (final r in review) correctMap[r['questionId']] = r['correctOpt'];
+        for (final r in reviewRaw) {
+          if (r is Map) correctMap[r['questionId'] as int] = r['correctOpt'] as String;
+        }
         final resultData = Map<String, dynamic>.from(widget.quiz);
         resultData['myScore'] = res['score'] ?? 0;
         resultData['cheated'] = _cheated;
@@ -512,12 +520,25 @@ class _QuizAttemptScreenState extends State<QuizAttemptScreen> with TickerProvid
           final correctLetter = correctMap[q['id']] ?? 'A';
           final opts = q['options'] as List;
           final correctIdx = optLabels.indexOf(correctLetter);
-          return {'question': q['question'], 'options': opts, 'correct': correctIdx >= 0 && correctIdx < opts.length ? opts[correctIdx] : opts[0], 'points': q['marks']};
+          return {
+            'question': q['question'],
+            'options': opts,
+            'correct': correctIdx >= 0 && correctIdx < opts.length ? opts[correctIdx] : opts[0],
+            'points': q['marks'],
+          };
         }).toList();
-        Navigator.pushReplacement(context, PageRouteBuilder(pageBuilder: (_, animation, __) => FadeTransition(opacity: animation, child: QuizResultScreen(quiz: resultData)), transitionDuration: const Duration(milliseconds: 500)));
+        Navigator.pushReplacement(context, PageRouteBuilder(
+          pageBuilder: (_, animation, __) => FadeTransition(opacity: animation, child: QuizResultScreen(quiz: resultData)),
+          transitionDuration: const Duration(milliseconds: 500),
+        ));
       } else {
         _isSubmitting = false;
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? 'Submit failed'), backgroundColor: const Color(0xFFFF6584), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(res['message'] ?? 'Submit failed'),
+          backgroundColor: const Color(0xFFFF6584),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
       }
     } catch (_) {
       _isSubmitting = false;
@@ -551,10 +572,7 @@ class _QuizAttemptScreenState extends State<QuizAttemptScreen> with TickerProvid
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          _cheated = true;
-          _submitQuiz();
-        }
+        if (!didPop) { _cheated = true; _submitQuiz(); }
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0E1A),
@@ -569,7 +587,13 @@ class _QuizAttemptScreenState extends State<QuizAttemptScreen> with TickerProvid
                     opacity: _questionEntryAnim,
                     child: SlideTransition(
                       position: Tween<Offset>(begin: const Offset(0.05, 0), end: Offset.zero).animate(_questionEntryAnim),
-                      child: ListView(padding: const EdgeInsets.fromLTRB(20, 16, 20, 120), children: [_buildQuestionCard(q, color), const SizedBox(height: 16), _buildOptions(q, color), const SizedBox(height: 20), _buildQuestionNav()]),
+                      child: ListView(padding: const EdgeInsets.fromLTRB(20, 16, 20, 120), children: [
+                        _buildQuestionCard(q, color),
+                        const SizedBox(height: 16),
+                        _buildOptions(q, color),
+                        const SizedBox(height: 20),
+                        _buildQuestionNav(),
+                      ]),
                     ),
                   ),
                 ),
@@ -588,10 +612,7 @@ class _QuizAttemptScreenState extends State<QuizAttemptScreen> with TickerProvid
       child: Column(children: [
         Row(children: [
           GestureDetector(
-            onTap: () {
-              _cheated = true;
-              _submitQuiz();
-            },
+            onTap: () { _cheated = true; _submitQuiz(); },
             child: Container(width: 42, height: 42, decoration: BoxDecoration(color: Colors.white.withOpacity(0.07), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withOpacity(0.1))), child: const Icon(Icons.close, color: Colors.white, size: 18)),
           ),
           const SizedBox(width: 14),
@@ -693,6 +714,7 @@ class _QuizAttemptScreenState extends State<QuizAttemptScreen> with TickerProvid
     );
   }
 }
+
 class QuizResultScreen extends StatefulWidget {
   final Map<String, dynamic> quiz;
   const QuizResultScreen({super.key, required this.quiz});
@@ -706,6 +728,12 @@ class _QuizResultScreenState extends State<QuizResultScreen> with TickerProvider
   late Animation<double> _entryAnim;
   late Animation<double> _scoreAnim;
 
+  bool _isLoadingResult = false;
+  int _myScore = 0;
+  int _totalMarks = 0;
+  List<Map<String, dynamic>> _questions = [];
+  Map<int, String> _answers = {};
+
   @override
   void initState() {
     super.initState();
@@ -713,6 +741,53 @@ class _QuizResultScreenState extends State<QuizResultScreen> with TickerProvider
     _scoreController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
     _entryAnim = CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic);
     _scoreAnim = CurvedAnimation(parent: _scoreController, curve: Curves.easeOutCubic);
+
+    final quiz = widget.quiz;
+
+    // Quiz submit ke baad aaya — data already hai
+    if (quiz['questions'] != null && quiz['questions'] is List) {
+      _myScore   = (quiz['myScore'] as num?)?.toInt() ?? 0;
+      _totalMarks = (quiz['totalMarks'] as num?)?.toInt() ?? 0;
+      _questions = List<Map<String, dynamic>>.from(quiz['questions'] as List);
+      _answers   = Map<int, String>.from(quiz['answers'] as Map? ?? {});
+      _entryController.forward();
+      Future.delayed(const Duration(milliseconds: 400), () => _scoreController.forward());
+    } else {
+      // View Result se aaya — backend se fetch karo
+      _myScore    = (quiz['myScore'] as num?)?.toInt() ?? 0;
+      _totalMarks = (quiz['totalMarks'] as num?)?.toInt() ?? 0;
+      _loadResultFromApi();
+    }
+  }
+
+  Future<void> _loadResultFromApi() async {
+    setState(() => _isLoadingResult = true);
+    try {
+      final quizId = widget.quiz['id'] as int;
+      final res = await QuizApi.getQuizQuestions(quizId);
+      if (res['success'] == true && mounted) {
+        final List raw = res['questions'] ?? [];
+        final optLabels = ['A', 'B', 'C', 'D'];
+        setState(() {
+          _questions = raw.map<Map<String, dynamic>>((q) => {
+            'question': q['questionText'] ?? '',
+            'options':  [q['optA'] ?? '', q['optB'] ?? '', q['optC'] ?? '', q['optD'] ?? ''],
+            'correct':  (() {
+              final letter = (q['correctOpt'] ?? 'A') as String;
+              final idx = optLabels.indexOf(letter.toUpperCase());
+              final opts = [q['optA'] ?? '', q['optB'] ?? '', q['optC'] ?? '', q['optD'] ?? ''];
+              return idx >= 0 && idx < opts.length ? opts[idx] : opts[0];
+            })(),
+            'points': q['marks'] ?? 1,
+          }).toList();
+          _isLoadingResult = false;
+        });
+      } else {
+        if (mounted) setState(() => _isLoadingResult = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingResult = false);
+    }
     _entryController.forward();
     Future.delayed(const Duration(milliseconds: 400), () => _scoreController.forward());
   }
@@ -726,18 +801,22 @@ class _QuizResultScreenState extends State<QuizResultScreen> with TickerProvider
 
   @override
   Widget build(BuildContext context) {
-    final quiz = widget.quiz;
-    final myScore = quiz['myScore'] as int? ?? 0;
-    final totalMarks = quiz['totalMarks'] as int;
-    final color = quiz['color'] as Color;
-    final pct = totalMarks > 0 ? myScore / totalMarks : 0.0;
-    final questions = quiz['questions'] as List<Map<String, dynamic>>? ?? [];
-    final answers = quiz['answers'] as Map<int, String>? ?? {};
+    final color      = widget.quiz['color'] as Color? ?? const Color(0xFF6C63FF);
+    final pct        = _totalMarks > 0 ? _myScore / _totalMarks : 0.0;
+
     String grade; Color gradeColor; String emoji;
-    if (pct >= 0.9) { grade = 'A+'; gradeColor = const Color(0xFF00D4AA); emoji = '🏆'; }
-    else if (pct >= 0.75) { grade = 'A'; gradeColor = const Color(0xFF6C63FF); emoji = '🌟'; }
-    else if (pct >= 0.6) { grade = 'B'; gradeColor = const Color(0xFFFFB347); emoji = '👍'; }
-    else { grade = 'C'; gradeColor = const Color(0xFFFF6584); emoji = '📝'; }
+    if (pct >= 0.9)      { grade = 'A+'; gradeColor = const Color(0xFF00D4AA); emoji = '🏆'; }
+    else if (pct >= 0.75){ grade = 'A';  gradeColor = const Color(0xFF6C63FF); emoji = '🌟'; }
+    else if (pct >= 0.6) { grade = 'B';  gradeColor = const Color(0xFFFFB347); emoji = '👍'; }
+    else                 { grade = 'C';  gradeColor = const Color(0xFFFF6584); emoji = '📝'; }
+
+    if (_isLoadingResult) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF0A0E1A),
+        body: const Center(child: CircularProgressIndicator(color: Color(0xFF6C63FF))),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E1A),
       body: Stack(
@@ -774,8 +853,8 @@ class _QuizResultScreenState extends State<QuizResultScreen> with TickerProvider
                           Text(emoji, style: const TextStyle(fontSize: 48)),
                           const SizedBox(height: 12),
                           Row(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
-                            Text('${(myScore * _scoreAnim.value).toInt()}', style: TextStyle(color: gradeColor, fontSize: 56, fontWeight: FontWeight.w900, letterSpacing: -2)),
-                            Padding(padding: const EdgeInsets.only(bottom: 10), child: Text('/$totalMarks', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 24, fontWeight: FontWeight.w600))),
+                            Text('${(_myScore * _scoreAnim.value).toInt()}', style: TextStyle(color: gradeColor, fontSize: 56, fontWeight: FontWeight.w900, letterSpacing: -2)),
+                            Padding(padding: const EdgeInsets.only(bottom: 10), child: Text('/$_totalMarks', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 24, fontWeight: FontWeight.w600))),
                           ]),
                           const SizedBox(height: 8),
                           Container(
@@ -789,12 +868,12 @@ class _QuizResultScreenState extends State<QuizResultScreen> with TickerProvider
                       ),
                     ),
                     const SizedBox(height: 20),
-                    _buildStatsRow(questions, answers),
+                    _buildStatsRow(_questions, _answers),
                     const SizedBox(height: 20),
-                    if (questions.isNotEmpty) ...[
+                    if (_questions.isNotEmpty) ...[
                       Text('Answer Review', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                       const SizedBox(height: 12),
-                      ...List.generate(questions.length, (i) => _buildAnswerRow(i, questions[i], answers[i])),
+                      ...List.generate(_questions.length, (i) => _buildAnswerRow(i, _questions[i], _answers[i])),
                     ],
                     const SizedBox(height: 20),
                     GestureDetector(
@@ -852,9 +931,9 @@ class _QuizResultScreenState extends State<QuizResultScreen> with TickerProvider
     final isCorrect = myAnswer == correct;
     final isSkipped = myAnswer == null;
     Color indicatorColor; IconData indicatorIcon;
-    if (isSkipped) { indicatorColor = const Color(0xFFFFB347); indicatorIcon = Icons.remove_circle; }
+    if (isSkipped)      { indicatorColor = const Color(0xFFFFB347); indicatorIcon = Icons.remove_circle; }
     else if (isCorrect) { indicatorColor = const Color(0xFF00D4AA); indicatorIcon = Icons.check_circle; }
-    else { indicatorColor = const Color(0xFFFF6584); indicatorIcon = Icons.cancel; }
+    else                { indicatorColor = const Color(0xFFFF6584); indicatorIcon = Icons.cancel; }
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -886,7 +965,6 @@ class _BgPainter extends CustomPainter {
     paint.color = const Color(0xFFFF6584).withValues(alpha: 0.04);
     canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.85), 120, paint);
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

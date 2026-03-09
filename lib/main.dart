@@ -4,18 +4,19 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'firebase_options.dart';
 import 'app/app.dart';
+import 'screens/auth/api_service.dart';
 
-// Background message handler — top level function zaroori hai
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  print("🔔 Background message: ${message.notification?.title}");
 }
 
-// Local notifications plugin
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
-// Notification Channel
 const AndroidNotificationChannel quizChannel = AndroidNotificationChannel(
   'edulearn_quiz_channel',
   'Quiz Notifications',
@@ -24,18 +25,29 @@ const AndroidNotificationChannel quizChannel = AndroidNotificationChannel(
   playSound: true,
 );
 
+Future<void> _saveTokenIfLoggedIn(String token) async {
+  try {
+    final isLoggedIn = await SessionStore.isLoggedIn;
+    if (isLoggedIn) {
+      await NotificationApi.saveFcmToken(token);
+      print("✅ FCM token saved to backend!");
+    } else {
+      print("⏭️ Not logged in — token will save on login");
+    }
+  } catch (e) {
+    print("❌ FCM token save failed: $e");
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase init
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Background handler register
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Local notifications setup
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
       AndroidFlutterLocalNotificationsPlugin>()
@@ -47,25 +59,41 @@ Future<void> main() async {
   const InitializationSettings initSettings =
   InitializationSettings(android: androidSettings);
 
-  await flutterLocalNotificationsPlugin.initialize(initSettings);
+  await flutterLocalNotificationsPlugin.initialize(
+    initSettings,
+    onDidReceiveNotificationResponse: (NotificationResponse response) {
+      print("🔔 Notification tapped: ${response.payload}");
+    },
+  );
 
-  // Foreground notification show karo
-  await FirebaseMessaging.instance
-      .setForegroundNotificationPresentationOptions(
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
     alert: true,
     badge: true,
     sound: true,
   );
 
-  // Notification permission maango (Android 13+)
+  NotificationSettings settings =
   await FirebaseMessaging.instance.requestPermission(
     alert: true,
     badge: true,
     sound: true,
   );
+  print("🔐 Permission status: ${settings.authorizationStatus}");
 
-  // Foreground messages handle karo
+  String? token = await FirebaseMessaging.instance.getToken();
+  print("📱 FCM Token: $token");
+
+  if (token != null) {
+    await _saveTokenIfLoggedIn(token);
+  }
+
+  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+    print("🔄 FCM Token refreshed: $newToken");
+    await _saveTokenIfLoggedIn(newToken);
+  });
+
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    print("📩 Foreground message received: ${message.notification?.title}");
     final notification = message.notification;
     final android = message.notification?.android;
 
@@ -86,6 +114,16 @@ Future<void> main() async {
         ),
       );
     }
+  });
+
+  FirebaseMessaging.instance.getInitialMessage().then((message) {
+    if (message != null) {
+      print("🚀 Launched from notification: ${message.notification?.title}");
+    }
+  });
+
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    print("📬 Opened from background notification: ${message.notification?.title}");
   });
 
   runApp(const EduLearnApp());

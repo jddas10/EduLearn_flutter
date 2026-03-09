@@ -346,6 +346,21 @@ class MarksApi {
         if (classId != null) 'classId': classId,
       });
 
+  // ✅ NEW: Subject edit
+  static Future<Map<String, dynamic>> updateSubject({
+    required int    subjectId,
+    required String name,
+    String icon       = '📚',
+    String color      = '#6C63FF',
+    int    totalMarks = 100,
+    int?   classId,
+  }) =>
+      _Http.put('/subjects/$subjectId', {
+        'name': name, 'icon': icon, 'color': color,
+        'totalMarks': totalMarks,
+        if (classId != null) 'classId': classId,
+      });
+
   static Future<Map<String, dynamic>> deleteSubject(int subjectId) =>
       _Http.delete('/subjects/$subjectId');
 
@@ -366,6 +381,13 @@ class MarksApi {
         'examType':  examType,
         if (examDate != null) 'examDate': examDate,
       });
+
+  // ✅ NEW: Delete individual student mark
+  static Future<Map<String, dynamic>> deleteMark({
+    required int studentId,
+    required int subjectId,
+  }) =>
+      _Http.delete('/marks/$studentId/$subjectId');
 }
 
 class QuizApi {
@@ -466,6 +488,19 @@ class HomeworkApi {
     }
   }
 
+  // ✅ NEW: Homework edit
+  static Future<Map<String, dynamic>> updateHomework({
+    required int    homeworkId,
+    required String title,
+    required String description,
+    required String dueDate,
+  }) =>
+      _Http.put('/homework/$homeworkId', {
+        'title':       title,
+        'description': description,
+        'dueDate':     dueDate,
+      });
+
   static Future<Map<String, dynamic>> getSubmissions(int homeworkId) =>
       _Http.get('/homework/$homeworkId/submissions');
 
@@ -500,5 +535,25 @@ class HomeworkApi {
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
+  }
+
+  static Future<Map<String, dynamic>> giveMarks({
+    required int    homeworkId,
+    required int    studentId,
+    required double marks,
+    String?         feedback,
+  }) =>
+      _Http.put('/homework/$homeworkId/marks', {
+        'student_id': studentId,
+        'marks':      marks,
+        if (feedback != null && feedback.isNotEmpty) 'feedback': feedback,
+      });
+}
+
+class NotificationApi {
+  static Future<void> saveFcmToken(String fcmToken) async {
+    try {
+      await _Http.post('/api/fcm/token', {'fcmToken': fcmToken});
+    } catch (_) {}
   }
 }
