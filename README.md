@@ -20,24 +20,22 @@
 | Attendance Marked | Recorded Lectures | Live Lecture |
 |---|---|---|
 | ![Marked](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/Attendence_marked.jpeg) | ![Lectures](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/Recorded_lecture.jpeg) | ![Live](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/live%20lecture.jpeg) |
- ![uploading Lectures](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/uploading%20lecture.jpeg) |
- ![Lecture uploaded](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/lecture_upload.jpeg) |
- | ![Video Play ](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/recorded_lecture_video%20_play.jpeg) |
+
+| Uploading Lectures | Lecture Uploaded | Video Play |
+|---|---|---|
+| ![Uploading Lectures](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/uploading%20lecture.jpeg) | ![Lecture Uploaded](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/lecture_upload.jpeg) | ![Video Play](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/recorded_lecture_video%20_play.jpeg) |
 
 | Quiz Studio | Create Quiz | Quiz Result |
 |---|---|---|
-| ![Create quiz ](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/Quiz.jpeg) | ![Quiz Created](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/Quiz_created.jpeg) | ![Quiz Result](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/Quiz_result.jpeg) |
+| ![Create Quiz](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/Quiz.jpeg) | ![Quiz Created](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/Quiz_created.jpeg) | ![Quiz Result](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/Quiz_result.jpeg) |
 
-| Marks Manager | Homework Hub | My Results |
+| Marks Manager | Create Subject | Homework Notification |
 |---|---|---|
-| ![Manage Marks](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/Manage_marks.jpeg) | 
-| ![Create Subject](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/new%20subject.jpeg) | 
-| ![Homework Notification](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/HomeWork_Notification.jpeg) | 
-| ![Assign Homework](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/HomeWork.jpeg) | 
-| ![Submit Homework](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/Submit_button_homework.jpeg) |
-![Results](screenshots/my_results.jpg) |
+| ![Manage Marks](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/Manage_marks.jpeg) | ![Create Subject](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/new%20subject.jpeg) | ![Homework Notification](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/HomeWork_Notification.jpeg) |
 
----
+| Assign Homework | Submit Homework | My Results |
+|---|---|---|
+| ![Assign Homework](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/HomeWork.jpeg) | ![Submit Homework](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/Submit_button_homework.jpeg) | ![Results](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/My%20results.jpeg) |
 
 ## ✨ Features
 
