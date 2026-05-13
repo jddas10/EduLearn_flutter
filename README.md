@@ -15,11 +15,12 @@
 
 | Splash Screen | Dashboard | QR Attendance |
 |---|---|---|
-| ![Splash](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/splash%20screen.jpeg) | ![Dashboard](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/student%20dashboard.jpeg) | ![Attendance](screenshots/attendance_scan.jpg) |
+| ![Splash](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/splash%20screen.jpeg) | ![Dashboard](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/student%20dashboard.jpeg) | ![Attendance](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/marl%20attendence.jpeg) |
 
 | Attendance Marked | Recorded Lectures | Live Lecture |
 |---|---|---|
-| ![Marked](screenshots/attendance_marked.jpg) | ![Lectures](screenshots/recorded_lectures.jpg) | ![Live](screenshots/live_lecture.jpg) |
+| ![Marked](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/Attendence_marked.jpeg) | ![Lectures](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/Recorded_lecture.jpeg) | ![Live](screenshots/live_lecture.jpg) |
+ ![uploading Lectures](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/uploading%20lecture.jpeg) |
 
 | Quiz Studio | Create Quiz | Quiz Result |
 |---|---|---|
