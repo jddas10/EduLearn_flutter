@@ -15,7 +15,7 @@
 
 | Splash Screen | Dashboard | QR Attendance |
 |---|---|---|
-| ![Splash](screenshots/splash.jpg) | ![Dashboard](screenshots/dashboard.jpg) | ![Attendance](screenshots/attendance_scan.jpg) |
+| ![Splash](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/splash%20screen.jpeg) | ![Dashboard](https://github.com/jddas10/EduLearn_flutter/blob/master/EduLearn_ScreenShots/student%20dashboard.jpeg) | ![Attendance](screenshots/attendance_scan.jpg) |
 
 | Attendance Marked | Recorded Lectures | Live Lecture |
 |---|---|---|
